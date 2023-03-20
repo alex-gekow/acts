@@ -6,6 +6,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+
 #include "ActsExamples/TrackFinding/AmbiguityResolutionAlgorithm.hpp"
 
 #include "Acts/EventData/MultiTrajectoryHelpers.hpp"
@@ -205,3 +206,4 @@ ActsExamples::ProcessCode ActsExamples::AmbiguityResolutionAlgorithm::execute(
   ctx.eventStore.add(m_cfg.outputTrajectories, std::move(outputTrajectories));
   return ActsExamples::ProcessCode::SUCCESS;
 }
+

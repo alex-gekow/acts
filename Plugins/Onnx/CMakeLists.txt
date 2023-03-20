@@ -3,9 +3,11 @@ add_library(
   # header files
   include/Acts/Plugins/Onnx/OnnxRuntimeBase.hpp
   include/Acts/Plugins/Onnx/MLTrackClassifier.hpp
+  include/Acts/Plugins/Onnx/MLHitSearch.hpp
   # source files
   src/OnnxRuntimeBase.cpp
-  src/MLTrackClassifier.cpp)
+  src/MLTrackClassifier.cpp
+  src/MLHitSearch.cpp)
 
 target_include_directories(
   ActsPluginOnnx

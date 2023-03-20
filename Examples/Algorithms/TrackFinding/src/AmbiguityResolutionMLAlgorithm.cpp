@@ -28,7 +28,7 @@
 ActsExamples::AmbiguityResolutionMLAlgorithm::AmbiguityResolutionMLAlgorithm(
     ActsExamples::AmbiguityResolutionMLAlgorithm::Config cfg,
     Acts::Logging::Level lvl)
-    : ActsExamples::BareAlgorithm("AmbiguityResolutionMLAlgorithm", lvl),
+    : ActsExamples::IAlgorithm("AmbiguityResolutionMLAlgorithm", lvl),
       m_cfg(std::move(cfg)),
       m_env(ORT_LOGGING_LEVEL_WARNING, "MLClassifier"),
       m_duplicateClassifier(m_env, m_cfg.inputDuplicateNN.c_str()) {

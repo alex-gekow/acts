@@ -11,6 +11,7 @@ set(SOURCES
 if(ACTS_BUILD_PLUGIN_ONNX)
   list(APPEND SOURCES 
     src/AmbiguityResolutionMLAlgorithm.cpp   
+    src/HitSearchMLAlgorithm.cpp
   )
 endif()
 add_library(
