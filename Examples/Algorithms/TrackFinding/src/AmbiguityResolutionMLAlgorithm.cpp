@@ -23,7 +23,8 @@
 #include <stdexcept>
 
 #include <Eigen/Dense>
-#include <core/session/onnxruntime_cxx_api.h>
+#include "/cvmfs/sft.cern.ch/lcg/views/LCG_103/x86_64-centos7-gcc11-opt/include/core/session/onnxruntime_cxx_api.h"
+//#include <core/session/onnxruntime_cxx_api.h>
 
 ActsExamples::AmbiguityResolutionMLAlgorithm::AmbiguityResolutionMLAlgorithm(
     ActsExamples::AmbiguityResolutionMLAlgorithm::Config cfg,
@@ -71,7 +72,8 @@ std::unordered_map<int, std::vector<int>> clusterTracks(
     }
     // None of the hits have been matched to a track create a new cluster
     if (matchedTrack == hitToTrack.end()) {
-      cluster.emplace(track->second.first, {track->second.first});
+      std::vector<int> a = {track->second.first};
+      cluster.emplace(track->second.first, a);
       for (const auto& hit : hits) {
         // Add the hits of the new cluster to the hitToTrack
         hitToTrack.emplace(hit, track->second.first);

@@ -115,7 +115,7 @@ std::vector<std::vector<float>> Acts::OnnxRuntimeBase::runONNXInference(
         "runONNXInference: calculation of output failed. ");
   }
   // Get pointer to output tensor float values
-  // note: this assumes the model has only 1 output node
+  // note: this assumes the model has only 1 output value
   float* outputTensor = outputTensors.front().GetTensorMutableData<float>();
   // Get the output values
   std::vector<std::vector<float>> outputTensorValues(
@@ -127,4 +127,75 @@ std::vector<std::vector<float>> Acts::OnnxRuntimeBase::runONNXInference(
     }
   }
   return outputTensorValues;
+}
+
+// Inference function using ONNX runtime
+// the function assumes that the model has two output layers
+std::map<int, std::vector<std::vector<float>>> Acts::OnnxRuntimeBase::runONNXInferenceMultilayerOutput(
+  NetworkBatchInput& inputTensorValues) const {
+  int batchSize = inputTensorValues.rows();
+  std::vector<int64_t> inputNodeDims = m_inputNodeDims;
+  std::vector<int64_t> outputNodeDims = m_outputNodeDims;
+
+  // The first dim node should correspond to the batch size
+  // If it is -1, it is dynamic and should be set to the input size
+  if (inputNodeDims[0] == -1) {
+    inputNodeDims[0] = batchSize;
+  }
+  if (outputNodeDims[0] == -1) {
+    outputNodeDims[0] = batchSize;
+  }
+
+  if (batchSize != 1 &&
+      (inputNodeDims[0] != batchSize || outputNodeDims[0] != batchSize)) {
+    throw std::runtime_error(
+        "runONNXInference: batch size doesn't match the input or output node "
+        "size");
+  }
+
+  // Create input tensor object from data values
+  // note: this assumes the model has only 1 input node
+  Ort::MemoryInfo memoryInfo =
+      Ort::MemoryInfo::CreateCpu(OrtArenaAllocator, OrtMemTypeDefault);
+  Ort::Value inputTensor = Ort::Value::CreateTensor<float>(
+      memoryInfo, inputTensorValues.data(), inputTensorValues.size(),
+      inputNodeDims.data(), inputNodeDims.size());
+  // Double-check that inputTensor is a Tensor
+  if (!inputTensor.IsTensor()) {
+    throw std::runtime_error(
+        "runONNXInference: conversion of input to Tensor failed. ");
+  }
+  // Score model on input tensors, get back output tensors
+  Ort::RunOptions run_options;
+  std::vector<Ort::Value> outputTensors =
+      m_session->Run(run_options, m_inputNodeNames.data(), &inputTensor,
+                     m_inputNodeNames.size(), m_outputNodeNames.data(),
+                     m_outputNodeNames.size());
+  // Double-check that outputTensors contains Tensors and that the count matches
+  // that of output nodes
+  if (!outputTensors[0].IsTensor() ||
+      (outputTensors.size() != m_outputNodeNames.size())) {
+    throw std::runtime_error(
+        "runONNXInference: calculation of output failed. ");
+  }
+  // Get pointers to output tensor float values
+  // note: this assumes the model has multiple output layers
+  std::map<int, std::vector<std::vector<float>>> outputTensorMap;
+  size_t numOutputNodes = m_session->GetOutputCount();
+  for (int i=0; i<numOutputNodes; i++){ // two output nodes
+    // retrieve pointer to output float tenor
+    float* output = outputTensors.at(i).GetTensorMutableData<float>();
+    Ort::TypeInfo outputTypeInfo = m_session->GetOutputTypeInfo(i);
+    auto outputTensorInfo = outputTypeInfo.GetTensorTypeAndShapeInfo();
+    // Not all outputNodes have the same shape. Get the new shape.
+    // First dimension should be batch size
+    outputNodeDims = outputTensorInfo.GetShape();
+    for (int j=0; j<outputNodeDims[0]; j++) {
+      for (int k=0; k<((outputNodeDims.size() > 1) ? outputNodeDims[1] : 1); k++) {
+        outputTensorMap[i][j][k] = output[j * outputNodeDims[1] + k];
+      } // output nodes (15 or 30 depending on i for classifer. i=0 -> 15 output nodes, i=1 -> 30 output nodes)
+    } // batch
+  } // output layers
+
+  return outputTensorMap;
 }

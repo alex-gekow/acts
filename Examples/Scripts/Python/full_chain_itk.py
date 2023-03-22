@@ -93,6 +93,8 @@ addSeeding(
     outputDirRoot=outputDir,
 )
 
+
+"""
 addCKFTracks(
     s,
     trackingGeometry,
@@ -115,5 +117,6 @@ addVertexFitting(
     vertexFinder=VertexFinder.Iterative,
     outputDirRoot=outputDir,
 )
+"""
 
 s.run()

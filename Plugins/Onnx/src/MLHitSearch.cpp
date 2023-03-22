@@ -9,22 +9,27 @@
 #include "Acts/Plugins/Onnx/MLHitSearch.hpp"
 #include <cassert>
 #include <stdexcept>
+#include <array>
 
 // prediction function
-std::vector<float> Acts::MLDetectorClassifier::predictVolumeAndLayer(std::vector<float>& inputFeatures) const {
+std::vector<std::vector<float>> Acts::MLDetectorClassifier::predictVolumeAndLayer(Acts::NetworkBatchInput& inputTensorValues) {
 
+  std::vector<std::vector<float>> outputs(inputTensorValues.rows(), std::vector<float>(45,0));
   // run the model over the input
-  std::vector<float> outputTensor = runONNXInference(inputFeatures);
-  // this is binary classification, so only need first value
-  auto volumeVec = outputTensor.front().GetTensorMutableData<float>;
-  auto layerVec  = outputTensor.back().GetTensorMutableData<float>;
-  auto predVolume = Argmax(volumeVec);
-  auto predLayer  = Argmax(layerVec);
-  
-  // Output as floats to ensure the type is correct for ML hit predictor
-  std::vector<float> outputs(45,0);
-  outputs[predVolume] = 1;
-  outputs[predLayer] = 1;
+  std::map<int, std::vector<std::vector<float>>> outputTensorValuesMap = runONNXInferenceMultilayerOutput(inputTensorValues);
+  // The first layer should be (batch,15) volume OHE
+  // The second layer should be (batch, 30) layer OHE
+  int batchSize = sizeof(outputTensorValuesMap[0]) / sizeof(float);
+  outputs.reserve(batchSize);
+  for (int i=0; i<batchSize; i++){
+    int predVolume = static_cast<int>(arg_max(outputTensorValuesMap[0][i]));
+    int predLayer  = static_cast<int>(arg_max(outputTensorValuesMap[1][i]));
+
+    std::vector<float> onehotencoding(45,0); 
+    onehotencoding[predVolume] = 1;
+    onehotencoding[predLayer] = 1;
+    outputs.push_back(onehotencoding);
+  }
   
   return outputs;
 }
@@ -33,9 +38,9 @@ std::vector<float> Acts::MLDetectorClassifier::predictVolumeAndLayer(std::vector
 std::vector<float> Acts::MLHitPredictor::PredictHitCoordinate(std::vector<float>& inputFeatures) const {
   // run the model over the input
   std::vector<float> outputTensor = runONNXInference(inputFeatures);
-  output_x = outputTensor[0];
-  output_y = outputTensor[1];
-  output_z = outputTensor[2];
+  float output_x = outputTensor[0];
+  float output_y = outputTensor[1];
+  float output_z = outputTensor[2];
   std::vector<float> output = {output_x, output_y, output_z};
   return output;
 }

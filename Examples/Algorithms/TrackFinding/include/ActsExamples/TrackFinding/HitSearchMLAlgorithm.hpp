@@ -9,6 +9,7 @@
 #pragma once
 
 #include "Acts/Plugins/Onnx/OnnxRuntimeBase.hpp"
+#include "Acts/Plugins/Onnx/MLHitSearch.hpp"
 #include "ActsExamples/Framework/IAlgorithm.hpp"
 
 #include <string>
@@ -38,7 +39,7 @@ class HitSearchMLAlgorithm final: public IAlgorithm {
         // Output track collection
         std::string outputTracks;
         // Minimum number of hits needed to consider a track
-        int minHit=6;
+        int nHitsMin=6;
         // Uncertainty window to search for hits (in mm)
         float uncertainty = 10;
      };
@@ -52,7 +53,7 @@ class HitSearchMLAlgorithm final: public IAlgorithm {
     ///
     /// @param cxt is the algorithm context with event information
     /// @return a process code indication success or failure
-    ProcessCode execute(const AlgorithmContext& ctx) const final;
+    ActsExamples::ProcessCode execute(const AlgorithmContext& ctx);
 
     /// Const access to the config
     const Config& config() const { return m_cfg; }

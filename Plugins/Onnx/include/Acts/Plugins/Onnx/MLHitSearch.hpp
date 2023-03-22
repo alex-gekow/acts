@@ -11,6 +11,8 @@
 #include "Acts/Plugins/Onnx/OnnxRuntimeBase.hpp"
 
 #include <vector>
+#include <map>
+#include <iterator>
 
 namespace Acts {
 
@@ -25,11 +27,11 @@ class MLDetectorClassifier : public OnnxRuntimeBase {
   /// @param inputFeatures The vector of input features comprising of n hits x,y,z coordinates 
   /// normalized such that x,y,z <=|1|
   /// @return One-hot-encoded volume and layer ID 
-  std::vector<float> predictVolumeAndLayer(std::vector<float>& inputFeatures) const;
+  std::vector<std::vector<float>> predictVolumeAndLayer(Acts::NetworkBatchInput&  inputFeatures);
 
   // Argmax function to convert predictions to one-hot-encoding
   template <typename T, typename A>
-  float arg_max(std::vector<T, A> const& vec) {
+  float arg_max(std::vector<T,A> vec) {
     return static_cast<float>(std::distance(vec.begin(), max_element(vec.begin(), vec.end())));
   }
 };

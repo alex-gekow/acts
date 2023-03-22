@@ -8,9 +8,10 @@
 
 #pragma once
 #include <vector>
-
+#include <map>
 #include <Eigen/Dense>
-#include <core/session/onnxruntime_cxx_api.h>
+// By default <core/session/onnxruntime_cxx_api.h> points to the wrong path
+#include "/cvmfs/sft.cern.ch/lcg/views/LCG_103/x86_64-centos7-gcc11-opt/include/core/session/onnxruntime_cxx_api.h"
 
 namespace Acts {
 
@@ -49,10 +50,15 @@ class OnnxRuntimeBase {
   std::vector<std::vector<float>> runONNXInference(
       NetworkBatchInput& inputTensorValues) const;
 
+  std::map<int, std::vector<std::vector<float>>> runONNXInferenceMultilayerOutput(
+    NetworkBatchInput& inputTensorValues) const;
+
+
  private:
   /// ONNX runtime session / model properties
   std::unique_ptr<Ort::Session> m_session;
   std::vector<Ort::AllocatedStringPtr> m_inputNodeNamesAllocated;
+  
   std::vector<const char*> m_inputNodeNames;
   std::vector<int64_t> m_inputNodeDims;
   std::vector<Ort::AllocatedStringPtr> m_outputNodeNamesAllocated;

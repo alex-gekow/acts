@@ -12,6 +12,7 @@
 #include "ActsExamples/TrackFinding/AmbiguityResolutionAlgorithm.hpp"
 #ifdef ACTS_PLUGIN_ONNX
 #include "ActsExamples/TrackFinding/AmbiguityResolutionMLAlgorithm.hpp"
+#include "ActsExamples/TrackFinding/HitSearchMLAlgorithm.hpp"
 #endif
 #include "ActsExamples/TrackFinding/HoughTransformSeeder.hpp"
 #include "ActsExamples/TrackFinding/SeedingAlgorithm.hpp"
@@ -324,6 +325,11 @@ void addTrackFinding(Context& ctx) {
                                 mex, "AmbiguityResolutionMLAlgorithm",
                                 inputTrajectories, inputDuplicateNN,
                                 outputTrajectories, nMeasurementsMin);
+
+  ACTS_PYTHON_DECLARE_ALGORITHM(ActsExamples::HitSearchMLAlgorithm,
+                                mex, "HitSearchMLAlgorithm",
+                                inputSeeds, NNDetectorClassifier,
+                                NNHitPredictor, nHitsMin, uncertainty);
 #endif
 }
 

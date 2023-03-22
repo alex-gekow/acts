@@ -144,6 +144,12 @@ AmbiguityResolutionMLConfig = namedtuple(
     defaults=[None] * 1,
 )
 
+HitSearchMLConfig = namedtuple(
+    "HitSearchMLConfig",
+    ["nHitsMin","uncertainty"],
+    defaults=[None] * 2
+)
+
 
 class VertexFinder(Enum):
     Truth = (1,)
@@ -1261,6 +1267,31 @@ def addAmbiguityResolution(
 
     return s
 
+@acts.examples.NamedTypeArgs(
+    config=HitSearchMLConfig
+)
+def addHitSearchML(
+    s,
+    config: HitSearchMLConfig = HitSearchMLConfig(),
+    NNDetectorClassifier: Optional[Union[Path, str]] = None,
+    NNHitPredictor: Optional[Union[Path, str]] = None,
+    inputSeeds: Optional[Union[Path,str]] = None
+    logLevel: Optional[acts.logging.Level] = None,
+)->None:
+    
+    from acts.examples import HitSearchMLAlgorithm
+    customLogLevel = acts.examples.defaultLogging(s, logLevel)
+    alg = HitSearchMLAlgorithm(
+        level=customLogLevel(),
+        inputSeeds=inputSeeds,
+        **acts.exmaples.defaultKWArgs(
+            nHitsMin=config.nHitsMin,
+            uncertainty=config.uncertainty
+        )
+    )
+
+    s.addAlgorithm(alg)
+    return s
 
 @acts.examples.NamedTypeArgs(
     config=AmbiguityResolutionMLConfig,
