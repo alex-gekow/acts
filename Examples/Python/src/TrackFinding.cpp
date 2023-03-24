@@ -329,7 +329,8 @@ void addTrackFinding(Context& ctx) {
   ACTS_PYTHON_DECLARE_ALGORITHM(ActsExamples::HitSearchMLAlgorithm,
                                 mex, "HitSearchMLAlgorithm",
                                 inputSeeds, NNDetectorClassifier,
-                                NNHitPredictor, nHitsMin, uncertainty);
+                                NNHitPredictor, outputTracks, nHitsMin, uncertainty);
+
 #endif
 }
 

@@ -20,7 +20,7 @@ ActsExamples::HitSearchMLAlgorithm::HitSearchMLAlgorithm(
   }
 }
 
-ActsExamples::ProcessCode ActsExamples::HitSearchMLAlgorithm::execute(const AlgorithmContext& ctx){
+ActsExamples::ProcessCode ActsExamples::HitSearchMLAlgorithm::execute(const AlgorithmContext& ctx) const {
 
    // Read in container of seeds
    // const auto& seeds = ctx.eventStore.get<SimSeedContainer>(m_cfg.inputSeeds);
@@ -32,6 +32,7 @@ ActsExamples::ProcessCode ActsExamples::HitSearchMLAlgorithm::execute(const Algo
   }
   
   auto testOHE = m_NNDetectorClassifier.predictVolumeAndLayer(networkInput);
+  std::cout<<"detector predicted"<<std::endl;
   // testSeed.insert(testSeed.begin(), testOHE.begin(), testOHE.end());
   // auto predHitCoordinate = m_NNHitPredictor.PredictHitCoordinate(testSeed);
 

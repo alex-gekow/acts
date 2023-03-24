@@ -10,7 +10,7 @@
 
 #include <cassert>
 #include <stdexcept>
-
+#include <iostream>
 // Parametrized constructor
 Acts::OnnxRuntimeBase::OnnxRuntimeBase(Ort::Env& env, const char* modelPath) {
   // Set the ONNX runtime session options
@@ -71,7 +71,7 @@ std::vector<std::vector<float>> Acts::OnnxRuntimeBase::runONNXInference(
     Acts::NetworkBatchInput& inputTensorValues) const {
   int batchSize = inputTensorValues.rows();
   std::vector<int64_t> inputNodeDims = m_inputNodeDims;
-  std::vector<int64_t> outputNodeDims = m_outputNodeDims;
+  std::vector<int64_t> outputNodeDims = m_outputNodeDims; //bad. Assumes they all have the same number of nodes.
 
   // The first dim node should correspond to the batch size
   // If it is -1, it is dynamic and should be set to the input size
@@ -182,19 +182,32 @@ std::map<int, std::vector<std::vector<float>>> Acts::OnnxRuntimeBase::runONNXInf
   // note: this assumes the model has multiple output layers
   std::map<int, std::vector<std::vector<float>>> outputTensorMap;
   size_t numOutputNodes = m_session->GetOutputCount();
-  for (int i=0; i<numOutputNodes; i++){ // two output nodes
+  for (int i=0; i<numOutputNodes; i++){ // two output layers
     // retrieve pointer to output float tenor
     float* output = outputTensors.at(i).GetTensorMutableData<float>();
     Ort::TypeInfo outputTypeInfo = m_session->GetOutputTypeInfo(i);
     auto outputTensorInfo = outputTypeInfo.GetTensorTypeAndShapeInfo();
     // Not all outputNodes have the same shape. Get the new shape.
     // First dimension should be batch size
+    
     outputNodeDims = outputTensorInfo.GetShape();
-    for (int j=0; j<outputNodeDims[0]; j++) {
-      for (int k=0; k<((outputNodeDims.size() > 1) ? outputNodeDims[1] : 1); k++) {
-        outputTensorMap[i][j][k] = output[j * outputNodeDims[1] + k];
-      } // output nodes (15 or 30 depending on i for classifer. i=0 -> 15 output nodes, i=1 -> 30 output nodes)
+    std::cout<<"Layer "<<i<<std::endl;
+    for(auto&n: outputNodeDims)std::cout<<"dim2: "<<n<<", ";
+    std::cout<<std::endl;
+    // if(outputNodeDims[0] < 0){
+    //   outputNodeDims[0] = batchSize;
+    // }
+    std::vector<std::vector<float>> batchVector;
+    for (int j=0; j<batchSize; j++) {
+      int nNodes = outputNodeDims.size() > 1 ? outputNodeDims[1] : 1;
+      std::vector<float> vec(nNodes,0);
+      for (int k=0; k<nNodes; k++) {
+        std::cout<<i<<" "<<j<<" "<<k<<std::endl;
+        vec[k] = output[j * outputNodeDims[1] + k];
+      } // output nodes (15 or 30 depending on i for classifer. i=0 -> 30 output nodes, i=1 -> 15 output nodes)
+      batchVector.push_back(vec);
     } // batch
+    outputTensorMap[i] = batchVector;
   } // output layers
 
   return outputTensorMap;

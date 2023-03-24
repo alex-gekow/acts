@@ -23,7 +23,7 @@ def _make_config_adapter(fn):
         cfg = type(self).Config()
         _kwargs = {}
         for k, v in kwargs.items():
-            if hasattr(cfg, k):
+            if ((hasattr(cfg, k)) and not (v is None)):
                 setattr(cfg, k, v)
             else:
                 _kwargs[k] = v

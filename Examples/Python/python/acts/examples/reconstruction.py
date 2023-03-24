@@ -1275,7 +1275,8 @@ def addHitSearchML(
     config: HitSearchMLConfig = HitSearchMLConfig(),
     NNDetectorClassifier: Optional[Union[Path, str]] = None,
     NNHitPredictor: Optional[Union[Path, str]] = None,
-    inputSeeds: Optional[Union[Path,str]] = None
+    inputSeeds: Optional[Union[Path,str]] = None,
+    outputTracks: Optional[Union[Path,str]] = None,
     logLevel: Optional[acts.logging.Level] = None,
 )->None:
     
@@ -1284,7 +1285,10 @@ def addHitSearchML(
     alg = HitSearchMLAlgorithm(
         level=customLogLevel(),
         inputSeeds=inputSeeds,
-        **acts.exmaples.defaultKWArgs(
+        outputTracks=outputTracks,
+        NNDetectorClassifier = NNDetectorClassifier,
+        NNHitPredictor = NNHitPredictor,
+        **acts.examples.defaultKWArgs(
             nHitsMin=config.nHitsMin,
             uncertainty=config.uncertainty
         )

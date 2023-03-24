@@ -12,18 +12,19 @@
 #include <array>
 
 // prediction function
-std::vector<std::vector<float>> Acts::MLDetectorClassifier::predictVolumeAndLayer(Acts::NetworkBatchInput& inputTensorValues) {
+std::vector<std::vector<float>> Acts::MLDetectorClassifier::predictVolumeAndLayer(Acts::NetworkBatchInput& inputTensorValues) const {
 
   std::vector<std::vector<float>> outputs(inputTensorValues.rows(), std::vector<float>(45,0));
   // run the model over the input
   std::map<int, std::vector<std::vector<float>>> outputTensorValuesMap = runONNXInferenceMultilayerOutput(inputTensorValues);
   // The first layer should be (batch,15) volume OHE
   // The second layer should be (batch, 30) layer OHE
-  int batchSize = sizeof(outputTensorValuesMap[0]) / sizeof(float);
+  int batchSize = outputTensorValuesMap[0].size();
   outputs.reserve(batchSize);
   for (int i=0; i<batchSize; i++){
-    int predVolume = static_cast<int>(arg_max(outputTensorValuesMap[0][i]));
-    int predLayer  = static_cast<int>(arg_max(outputTensorValuesMap[1][i]));
+    int predVolume = static_cast<int>(arg_max(outputTensorValuesMap[1][i]));
+    int predLayer  = static_cast<int>(arg_max(outputTensorValuesMap[0][i]));
+    std::cout<<"predicted volume, layer: "<<predVolume<<", "<<predLayer<<std::endl;
 
     std::vector<float> onehotencoding(45,0); 
     onehotencoding[predVolume] = 1;

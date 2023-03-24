@@ -48,7 +48,7 @@ option(ACTS_USE_SYSTEM_VECMEM "Use a system-provided vecmem installation" ${ACTS
 option(ACTS_BUILD_PLUGIN_SYCL "Build SYCL plugin" OFF)
 option(ACTS_BUILD_PLUGIN_TGEO "Build TGeo plugin" OFF)
 # fatras related options
-option(ACTS_BUILD_FATRAS "Build FAst TRAcking Simulation package" OFF)
+option(ACTS_BUILD_FATRAS "Build FAst TRAcking Simulation package" ON)
 option(ACTS_BUILD_FATRAS_GEANT4 "Build Geant4 Fatras package" OFF)
 # alignment related options
 option(ACTS_BUILD_ALIGNMENT "Build Alignment package" OFF)
