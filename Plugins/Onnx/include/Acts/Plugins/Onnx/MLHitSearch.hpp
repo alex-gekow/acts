@@ -28,13 +28,23 @@ class MLDetectorClassifier : public OnnxRuntimeBase {
   /// @param inputFeatures The vector of input features comprising of n hits x,y,z coordinates 
   /// normalized such that x,y,z <=|1|
   /// @return One-hot-encoded volume and layer ID 
-  std::vector<std::vector<float>> predictVolumeAndLayer(Acts::NetworkBatchInput&  inputFeatures) const;
+  std::vector<std::vector<float>> PredictVolumeAndLayer(Acts::NetworkBatchInput&  inputFeatures) const;
 
   // Argmax function to convert predictions to one-hot-encoding
   template <typename T, typename A>
   float arg_max(std::vector<T,A> vec) const {
     return static_cast<float>(std::distance(vec.begin(), max_element(vec.begin(), vec.end())));
   }
+
+ private:
+  float xScale = 1005;
+  float yScale = 1005;
+  float zScale = 3500;
+
+ public:
+  constexpr float getXScale() const {return xScale;};
+  constexpr float getYScale() const {return yScale;};
+  constexpr float getZScale() const {return zScale;};
 };
 
 class MLHitPredictor : public OnnxRuntimeBase {
@@ -46,7 +56,18 @@ class MLHitPredictor : public OnnxRuntimeBase {
   /// @param inputFeatures The vector of input features comprising of n hits x,y,z coordinates 
   /// normalized such that x,y,z <=|1| as well as the one-hot-encoded volume and layer id prediction
   /// @return The predicted next hit coordinate x,y,z <=|1|
-  std::vector<float> PredictHitCoordinate(std::vector<float>& inputFeatures) const;
+  std::vector<std::vector<float>> PredictHitCoordinate(Acts::NetworkBatchInput& inputTensorValues) const;
+
+ private:
+  float xScale = 1005;
+  float yScale = 1005;
+  float zScale = 3500;
+
+ public:
+  constexpr float getXScale() const {return xScale;};
+  constexpr float getYScale() const {return yScale;};
+  constexpr float getZScale() const {return zScale;};
+
 };
 
 }  // namespace Acts

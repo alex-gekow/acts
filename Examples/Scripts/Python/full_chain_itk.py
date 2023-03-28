@@ -35,17 +35,9 @@ detector, trackingGeometry, decorators = acts.examples.itk.buildITkGeometry(geo_
 field = acts.examples.MagneticFieldMapXyz(str(geo_dir / "bfield/ATLAS-BField-xyz.root"))
 rnd = acts.examples.RandomNumbers(seed=42)
 
-s = acts.examples.Sequencer(events=100, numThreads=1, outputDir=str(outputDir))
+s = acts.examples.Sequencer(events=1, numThreads=1, outputDir=str(outputDir))
 
-addHitSearchML(
-    s,
-    config = HitSearchMLConfig(uncertainty=10, nHitsMin=6),
-    inputSeeds = "seeds",
-    outputTracks="outputTracks",
-    NNDetectorClassifier = "acts/Examples/Scripts/Python/MLHitSearch/Classification_MLP_ITK_ws3_v3.onnx",
-    NNHitPredictor =       "acts/Examples/Scripts/PythonMLHitSearch/Extrap_MLP_ITK_ws3.onnx"
-)
-"""
+
 if not ttbar_pu200:
     addParticleGun(
         s,
@@ -105,6 +97,16 @@ addSeeding(
 )
 
 
+addHitSearchML(
+    s,
+    config = HitSearchMLConfig(uncertainty=10, nHitsMin=6),
+    inputSeeds = "seeds",
+    outputTracks="outputTracks",
+    NNDetectorClassifier = "acts/Examples/Scripts/Python/MLHitSearch/Classification_MLP_ITK_ws3_v3.onnx",
+    NNHitPredictor =       "acts/Examples/Scripts/Python/MLHitSearch/Extrap_MLP_ITK_ws3.onnx"
+)
+
+"""
 addCKFTracks(
     s,
     trackingGeometry,

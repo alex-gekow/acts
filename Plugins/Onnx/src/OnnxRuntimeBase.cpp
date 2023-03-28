@@ -191,9 +191,6 @@ std::map<int, std::vector<std::vector<float>>> Acts::OnnxRuntimeBase::runONNXInf
     // First dimension should be batch size
     
     outputNodeDims = outputTensorInfo.GetShape();
-    std::cout<<"Layer "<<i<<std::endl;
-    for(auto&n: outputNodeDims)std::cout<<"dim2: "<<n<<", ";
-    std::cout<<std::endl;
     // if(outputNodeDims[0] < 0){
     //   outputNodeDims[0] = batchSize;
     // }
@@ -202,9 +199,10 @@ std::map<int, std::vector<std::vector<float>>> Acts::OnnxRuntimeBase::runONNXInf
       int nNodes = outputNodeDims.size() > 1 ? outputNodeDims[1] : 1;
       std::vector<float> vec(nNodes,0);
       for (int k=0; k<nNodes; k++) {
-        std::cout<<i<<" "<<j<<" "<<k<<std::endl;
         vec[k] = output[j * outputNodeDims[1] + k];
       } // output nodes (15 or 30 depending on i for classifer. i=0 -> 30 output nodes, i=1 -> 15 output nodes)
+      // for(auto& v:vec)std::cout<<v<<", ";
+      // std::cout<<std::endl;
       batchVector.push_back(vec);
     } // batch
     outputTensorMap[i] = batchVector;
