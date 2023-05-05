@@ -50,7 +50,7 @@ class OnnxRuntimeBase {
   std::vector<std::vector<float>> runONNXInference(
       NetworkBatchInput& inputTensorValues) const;
 
-  std::map<int, std::vector<std::vector<float>>> runONNXInferenceMultilayerOutput(
+  std::map<int, Eigen::MatrixXf> runONNXInferenceMultilayerOutput(
     NetworkBatchInput& inputTensorValues) const;
 
 

@@ -28,7 +28,7 @@ class MLDetectorClassifier : public OnnxRuntimeBase {
   /// @param inputFeatures The vector of input features comprising of n hits x,y,z coordinates 
   /// normalized such that x,y,z <=|1|
   /// @return One-hot-encoded volume and layer ID 
-  std::vector<std::vector<float>> PredictVolumeAndLayer(Acts::NetworkBatchInput&  inputFeatures) const;
+  Eigen::MatrixXf PredictVolumeAndLayer(Acts::NetworkBatchInput&  inputFeatures) const;
 
   // Argmax function to convert predictions to one-hot-encoding
   template <typename T, typename A>
@@ -56,7 +56,7 @@ class MLHitPredictor : public OnnxRuntimeBase {
   /// @param inputFeatures The vector of input features comprising of n hits x,y,z coordinates 
   /// normalized such that x,y,z <=|1| as well as the one-hot-encoded volume and layer id prediction
   /// @return The predicted next hit coordinate x,y,z <=|1|
-  std::vector<std::vector<float>> PredictHitCoordinate(Acts::NetworkBatchInput& inputTensorValues) const;
+  Eigen::MatrixXf PredictHitCoordinate(Acts::NetworkBatchInput& inputTensorValues) const;
 
  private:
   float xScale = 1005;

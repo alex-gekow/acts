@@ -11,6 +11,8 @@
 #include <cassert>
 #include <stdexcept>
 #include <iostream>
+#include <Eigen/Dense>
+
 // Parametrized constructor
 Acts::OnnxRuntimeBase::OnnxRuntimeBase(Ort::Env& env, const char* modelPath) {
   // Set the ONNX runtime session options
@@ -131,9 +133,10 @@ std::vector<std::vector<float>> Acts::OnnxRuntimeBase::runONNXInference(
 
 // Inference function using ONNX runtime
 // the function assumes that the model has two output layers
-std::map<int, std::vector<std::vector<float>>> Acts::OnnxRuntimeBase::runONNXInferenceMultilayerOutput(
+// should return a map of <int, Eigen::Matrix>
+std::map<int, Eigen::MatrixXf> Acts::OnnxRuntimeBase::runONNXInferenceMultilayerOutput(
   NetworkBatchInput& inputTensorValues) const {
-  int batchSize = inputTensorValues.rows();
+  const int batchSize = inputTensorValues.rows();
   std::vector<int64_t> inputNodeDims = m_inputNodeDims;
   std::vector<int64_t> outputNodeDims = m_outputNodeDims;
 
@@ -152,6 +155,8 @@ std::map<int, std::vector<std::vector<float>>> Acts::OnnxRuntimeBase::runONNXInf
         "runONNXInference: batch size doesn't match the input or output node "
         "size");
   }
+
+  std::cout<<"batch size "<<batchSize<<std::endl;
 
   // Create input tensor object from data values
   // note: this assumes the model has only 1 input node
@@ -180,7 +185,7 @@ std::map<int, std::vector<std::vector<float>>> Acts::OnnxRuntimeBase::runONNXInf
   }
   // Get pointers to output tensor float values
   // note: this assumes the model has multiple output layers
-  std::map<int, std::vector<std::vector<float>>> outputTensorMap;
+  std::map<int, Eigen::MatrixXf> outputTensorMap;
   size_t numOutputNodes = m_session->GetOutputCount();
   for (int i=0; i<numOutputNodes; i++){ // two output layers
     // retrieve pointer to output float tenor
@@ -194,19 +199,17 @@ std::map<int, std::vector<std::vector<float>>> Acts::OnnxRuntimeBase::runONNXInf
     // if(outputNodeDims[0] < 0){
     //   outputNodeDims[0] = batchSize;
     // }
-    std::vector<std::vector<float>> batchVector;
+    int nNodes = outputNodeDims.size() > 1 ? outputNodeDims[1] : 1;
+    Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic> batchMatrix(batchSize, nNodes);
     for (int j=0; j<batchSize; j++) {
-      int nNodes = outputNodeDims.size() > 1 ? outputNodeDims[1] : 1;
-      std::vector<float> vec(nNodes,0);
+      Eigen::VectorXf vec(nNodes);
       for (int k=0; k<nNodes; k++) {
-        vec[k] = output[j * outputNodeDims[1] + k];
+        float val = output[j * outputNodeDims[1] + k];
+        vec(k) = val;
       } // output nodes (15 or 30 depending on i for classifer. i=0 -> 30 output nodes, i=1 -> 15 output nodes)
-      // for(auto& v:vec)std::cout<<v<<", ";
-      // std::cout<<std::endl;
-      batchVector.push_back(vec);
+      batchMatrix.row(j) = vec;
     } // batch
-    outputTensorMap[i] = batchVector;
+    outputTensorMap[i] = batchMatrix;
   } // output layers
-
   return outputTensorMap;
 }

@@ -12,46 +12,56 @@
 #include <array>
 
 // prediction function
-std::vector<std::vector<float>> Acts::MLDetectorClassifier::PredictVolumeAndLayer(Acts::NetworkBatchInput& inputTensorValues) const {
+Eigen::MatrixXf Acts::MLDetectorClassifier::PredictVolumeAndLayer(Acts::NetworkBatchInput& inputTensorValues) const {
 
-  std::vector<std::vector<float>> outputs;
+  const int batchSize = inputTensorValues.rows();
+  Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic> outputs(batchSize, 45);
   // run the model over the input
-  std::map<int, std::vector<std::vector<float>>> outputTensorValuesMap = runONNXInferenceMultilayerOutput(inputTensorValues);
+  std::map<int, Eigen::MatrixXf> outputTensorValuesMap = runONNXInferenceMultilayerOutput(inputTensorValues);
   // The first layer should be (batch,15) volume OHE
   // The second layer should be (batch, 30) layer OHE
-  int batchSize = outputTensorValuesMap[0].size();
+  
   for (int i=0; i<batchSize; i++){
-    int predVolume = static_cast<int>(arg_max(outputTensorValuesMap[1][i]));
-    int predLayer  = static_cast<int>(arg_max(outputTensorValuesMap[0][i]));
 
-    std::vector<float> onehotencoding(45,0); 
+    // cast eigen vectors to std::vectors to use argmax
+    // more efficient to write an argmax function to operate on Eigen::Vectors?
+    auto volEigenVec = outputTensorValuesMap[1].row(i);
+    auto layEigenVec = outputTensorValuesMap[0].row(i);
+    std::cout<<volEigenVec<<"\n"<<layEigenVec<<std::endl;
+
+    std::vector<float> volVec(volEigenVec.data(), volEigenVec.data() + volEigenVec.size());
+    std::vector<float> layVec(layEigenVec.data(), layEigenVec.data() + layEigenVec.size());
+    for(auto& v: volVec) std::cout<<v<<", ";
+    std::cout<<std::endl;
+    for(auto& v: layVec) std::cout<<v<<", ";
+    std::cout<<std::endl;
+
+    int predVolume = static_cast<int>(arg_max(volVec));
+    int predLayer  = static_cast<int>(arg_max(layVec));
+    Eigen::VectorXf onehotencoding = Eigen::VectorXf::Zero(45); 
     onehotencoding[predVolume] = 1;
     onehotencoding[15+predLayer] = 1;
-   
-    outputs.push_back(onehotencoding);
+    outputs.row(i) = onehotencoding;
   }
-  
-  return outputs;
+    return outputs;
 }
 
 // prediction function
-std::vector<std::vector<float>> Acts::MLHitPredictor::PredictHitCoordinate(Acts::NetworkBatchInput& inputTensorValues) const {
+// covnert to eigen functions
+Eigen::MatrixXf Acts::MLHitPredictor::PredictHitCoordinate(Acts::NetworkBatchInput& inputTensorValues) const {
   // run the model over the input
-  // std::vector<float> outputTensor = runONNXInference(inputFeatures);
-  std::vector<std::vector<float>> outputs;
-  std::map<int, std::vector<std::vector<float>>> outputTensorValuesMap = runONNXInferenceMultilayerOutput(inputTensorValues);
+  std::map<int, Eigen::MatrixXf> outputTensorValuesMap = runONNXInferenceMultilayerOutput(inputTensorValues);
 
-  int batchSize = outputTensorValuesMap[0].size();
-  for (int i=0; i<batchSize; i++){
-    std::cout<<std::endl;
-    outputs.push_back(outputTensorValuesMap[0][i]); // Only 1 layer output
-
-  }
 
   // float output_x = outputTensor[0];
   // float output_y = outputTensor[1];
   // float output_z = outputTensor[2];
   // std::vector<float> output = {output_x, output_y, output_z};
 
-  return outputs;
+  auto output = outputTensorValuesMap[0];//Outputs for this model should have only one output layer
+  output.col(0) *= getXScale();
+  output.col(1) *= getYScale();
+  output.col(2) *= getZScale();
+  
+  return output;
 }
