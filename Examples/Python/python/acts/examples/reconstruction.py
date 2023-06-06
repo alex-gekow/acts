@@ -1277,6 +1277,8 @@ def addHitSearchML(
     NNHitPredictor: Optional[Union[Path, str]] = None,
     inputSeeds: Optional[Union[Path,str]] = None,
     outputTracks: Optional[Union[Path,str]] = None,
+    inputSourceLinks: Optional[Union[Path,str]] = None,
+    inputSpacePoints: Optional[Union[Path,str]] = None,
     logLevel: Optional[acts.logging.Level] = None,
 )->None:
     
@@ -1286,6 +1288,8 @@ def addHitSearchML(
         level=customLogLevel(),
         inputSeeds=inputSeeds,
         outputTracks=outputTracks,
+        inputSourceLinks=inputSourceLinks,
+        inputSpacePoints=inputSpacePoints,
         NNDetectorClassifier = NNDetectorClassifier,
         NNHitPredictor = NNHitPredictor,
         **acts.examples.defaultKWArgs(

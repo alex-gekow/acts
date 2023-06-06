@@ -102,6 +102,8 @@ addHitSearchML(
     config = HitSearchMLConfig(uncertainty=10, nHitsMin=6),
     inputSeeds = "seeds",
     outputTracks="outputTracks",
+    inputSourceLinks="sourcelinks",
+    inputSpacePoints="spacepoints",
     NNDetectorClassifier = "acts/Examples/Scripts/Python/MLHitSearch/Classification_MLP_ITK_ws3_v3.onnx",
     NNHitPredictor =       "acts/Examples/Scripts/Python/MLHitSearch/Extrap_MLP_ITK_ws3.onnx"
 )

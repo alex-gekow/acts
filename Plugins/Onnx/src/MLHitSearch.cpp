@@ -27,14 +27,9 @@ Eigen::MatrixXf Acts::MLDetectorClassifier::PredictVolumeAndLayer(Acts::NetworkB
     // more efficient to write an argmax function to operate on Eigen::Vectors?
     auto volEigenVec = outputTensorValuesMap[1].row(i);
     auto layEigenVec = outputTensorValuesMap[0].row(i);
-    std::cout<<volEigenVec<<"\n"<<layEigenVec<<std::endl;
 
     std::vector<float> volVec(volEigenVec.data(), volEigenVec.data() + volEigenVec.size());
     std::vector<float> layVec(layEigenVec.data(), layEigenVec.data() + layEigenVec.size());
-    for(auto& v: volVec) std::cout<<v<<", ";
-    std::cout<<std::endl;
-    for(auto& v: layVec) std::cout<<v<<", ";
-    std::cout<<std::endl;
 
     int predVolume = static_cast<int>(arg_max(volVec));
     int predLayer  = static_cast<int>(arg_max(layVec));

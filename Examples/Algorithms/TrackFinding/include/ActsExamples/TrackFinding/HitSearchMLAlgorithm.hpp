@@ -38,6 +38,10 @@ class HitSearchMLAlgorithm final: public IAlgorithm {
         std::string NNDetectorClassifier, NNHitPredictor;
         // Output track collection
         std::string outputTracks;
+        // Input source links
+        std::string inputSourceLinks;
+        // Input spacepoints
+        std::string inputSpacePoints;
         // Minimum number of hits needed to consider a track
         int nHitsMin=6;
         // Uncertainty window to search for hits (in mm)
@@ -57,6 +61,9 @@ class HitSearchMLAlgorithm final: public IAlgorithm {
 
     /// Const access to the config
     const Config& config() const { return m_cfg; }
+
+    Acts::NetworkBatchInput BatchTracksForGeoPrediction(std::vector<SimSpacePointContainer> hitTracks);
+
 
     private:
     Config m_cfg;
