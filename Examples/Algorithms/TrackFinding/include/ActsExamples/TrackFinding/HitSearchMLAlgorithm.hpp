@@ -11,6 +11,11 @@
 #include "Acts/Plugins/Onnx/OnnxRuntimeBase.hpp"
 #include "Acts/Plugins/Onnx/MLHitSearch.hpp"
 #include "ActsExamples/Framework/IAlgorithm.hpp"
+#include "Acts/TrackFinding/CombinatorialKalmanFilter.hpp"
+#include "ActsExamples/EventData/SimSpacePoint.hpp"
+#include "Acts/EventData/TrackStatePropMask.hpp"
+
+
 
 #include <string>
 #include <vector>
@@ -63,6 +68,9 @@ class HitSearchMLAlgorithm final: public IAlgorithm {
     const Config& config() const { return m_cfg; }
 
     Acts::NetworkBatchInput BatchTracksForGeoPrediction(std::vector<SimSpacePointContainer> hitTracks);
+    Acts::NetworkBatchInput BatchTracksForGeoPrediction(Acts::VectorMultiTrajectory tracks,
+        std::map <const Acts::SourceLink*, const ActsExamples::SimSpacePoint*>& sourceLinkSPMap,
+        IndexSourceLinkContainer sourceLinks, SimSpacePointContainer& spacePoints);
 
 
     private:
@@ -74,5 +82,31 @@ class HitSearchMLAlgorithm final: public IAlgorithm {
     Acts::MLHitPredictor m_NNHitPredictor;
 };
 
+struct MLPathFinderTipState {
+    Acts::SourceLink& prevTip;
+};
 
+template <typename source_link_iterator_t, typename traj_t>
+void createSourceLinkTrackStatesML(
+                                     Acts::CombinatorialKalmanFilterResult<traj_t>& result,
+                                     size_t prevTip,
+                                     source_link_iterator_t slBegin,
+                                     source_link_iterator_t slEnd) {
+    result.trackStateCandidates.clear();
+    result.trackStateCandidates.reserve(std::distance(slBegin, slEnd));
+    result.stateBuffer->clear();
+    for (auto it = slBegin; it != slEnd; ++it) {
+        // get the source link
+        const auto sourceLink = *it;
+        Acts::TrackStatePropMask mask = Acts::TrackStatePropMask::Predicted;
+        size_t tsi = result.stateBuffer->addTrackState(mask, prevTip);
+        // CAREFUL! This trackstate has a previous index that is not in this
+        // MultiTrajectory Visiting brackwards from this track state will
+        // fail!
+        auto ts = result.stateBuffer->getTrackState(tsi);
+        ts.setUncalibratedSourceLink(sourceLink);
+        result.trackStateCandidates.push_back(ts);
+    }              
 }
+
+} // namespace ActsExamples
