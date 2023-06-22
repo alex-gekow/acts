@@ -26,20 +26,16 @@ auto VectorMultiTrajectory::addTrackState_impl(TrackStatePropMask mask,
                                                IndexType iprevious)
     -> IndexType {
   using PropMask = TrackStatePropMask;
-
   m_index.emplace_back();
   IndexData& p = m_index.back();
   IndexType index = m_index.size() - 1;
-
   p.allocMask = mask;
 
   if (iprevious != kInvalid) {
     p.iprevious = iprevious;
   }
-
   // always set, but can be null
   m_referenceSurfaces.emplace_back(nullptr);
-
   assert(m_params.size() == m_cov.size());
 
   if (ACTS_CHECK_BIT(mask, PropMask::Predicted)) {
@@ -69,10 +65,8 @@ auto VectorMultiTrajectory::addTrackState_impl(TrackStatePropMask mask,
 
   m_sourceLinks.emplace_back(std::nullopt);
   p.iuncalibrated = m_sourceLinks.size() - 1;
-
   m_measOffset.push_back(kInvalid);
   m_measCovOffset.push_back(kInvalid);
-
   if (ACTS_CHECK_BIT(mask, PropMask::Calibrated)) {
     m_sourceLinks.emplace_back(std::nullopt);
     p.icalibratedsourcelink = m_sourceLinks.size() - 1;
@@ -80,7 +74,6 @@ auto VectorMultiTrajectory::addTrackState_impl(TrackStatePropMask mask,
     m_projectors.emplace_back();
     p.iprojector = m_projectors.size() - 1;
   }
-
   // dynamic columns
   for (auto& [key, vec] : m_dynamic) {
     vec->add();

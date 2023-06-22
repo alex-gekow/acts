@@ -68,9 +68,8 @@ class HitSearchMLAlgorithm final: public IAlgorithm {
     const Config& config() const { return m_cfg; }
 
     Acts::NetworkBatchInput BatchTracksForGeoPrediction(std::vector<SimSpacePointContainer> hitTracks);
-    Acts::NetworkBatchInput BatchTracksForGeoPrediction(Acts::VectorMultiTrajectory tracks,
-        std::map <const Acts::SourceLink*, const ActsExamples::SimSpacePoint*>& sourceLinkSPMap,
-        IndexSourceLinkContainer sourceLinks, SimSpacePointContainer& spacePoints);
+    Acts::NetworkBatchInput BatchTracksForGeoPrediction(Acts::CombinatorialKalmanFilterResult<Acts::VectorMultiTrajectory> tracks,
+        std::vector<Acts::SourceLink> sourceLinks);
 
 
     private:
@@ -108,5 +107,41 @@ void createSourceLinkTrackStatesML(
         result.trackStateCandidates.push_back(ts);
     }              
 }
+
+class SpacepointSourceLink {
+ public:
+  /// Construct from geometry identifier and spacepoint.
+  SpacepointSourceLink(Acts::GeometryIdentifier gid, SimSpacePoint sp)
+      : m_geometryId(gid), m_spacepoint(sp) {}
+
+  // Construct an invalid source link. Must be default constructible to
+  /// satisfy SourceLinkConcept.
+  SpacepointSourceLink() = default;
+  SpacepointSourceLink(const SpacepointSourceLink&) = default;
+  SpacepointSourceLink(SpacepointSourceLink&&) = default;
+  SpacepointSourceLink& operator=(const SpacepointSourceLink&) = default;
+  SpacepointSourceLink& operator=(SpacepointSourceLink&&) = default;
+
+  /// Access the index.
+  const SimSpacePoint sp() const { return m_spacepoint; }
+
+  Acts::GeometryIdentifier geometryId() const { return m_geometryId; }
+
+ private:
+  Acts::GeometryIdentifier m_geometryId;
+  SimSpacePoint m_spacepoint;
+
+  friend bool operator==(const SpacepointSourceLink& lhs,
+                         const SpacepointSourceLink& rhs) {
+    return (lhs.geometryId() == rhs.geometryId()) and
+           (lhs.m_spacepoint == rhs.m_spacepoint);
+  }
+  friend bool operator!=(const SpacepointSourceLink& lhs,
+                         const SpacepointSourceLink& rhs) {
+    return not(lhs == rhs);
+  }
+};
+
+using SpacepointSourceLinkContainer = std::vector<SpacepointSourceLink>;
 
 } // namespace ActsExamples

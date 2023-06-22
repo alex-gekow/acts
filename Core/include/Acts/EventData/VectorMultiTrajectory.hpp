@@ -331,6 +331,10 @@ class VectorMultiTrajectory final
     return detail_vmt::VectorMultiTrajectoryBase::statistics(*this);
   }
 
+  void InitializeIndex(){
+    this->m_index = {};
+  }
+
  private:
   // BEGIN INTERFACE
   TrackStateProxy::Parameters parameters_impl(IndexType parIdx) {
