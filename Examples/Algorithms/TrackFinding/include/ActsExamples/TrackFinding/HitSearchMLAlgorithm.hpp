@@ -68,8 +68,7 @@ class HitSearchMLAlgorithm final: public IAlgorithm {
     const Config& config() const { return m_cfg; }
 
     Acts::NetworkBatchInput BatchTracksForGeoPrediction(std::vector<SimSpacePointContainer> hitTracks);
-    Acts::NetworkBatchInput BatchTracksForGeoPrediction(Acts::CombinatorialKalmanFilterResult<Acts::VectorMultiTrajectory> tracks,
-        std::vector<Acts::SourceLink> sourceLinks);
+    Acts::NetworkBatchInput BatchTracksForGeoPrediction(Acts::CombinatorialKalmanFilterResult<Acts::VectorMultiTrajectory> tracks) const;
 
 
     private:

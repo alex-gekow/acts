@@ -47,29 +47,45 @@ ActsExamples::ProcessCode ActsExamples::HitSearchMLAlgorithm::execute(const Algo
   // Create collection of sourceLinks built from spacepoints rather than measurement indices
   // Possible to use SpacepointSourceLinks instead of Acts::SourceLink?
   std::vector<Acts::SourceLink> sourceLinks;
-  for (const auto& sp:spacepoints){
-    // ActsExamples::SpacepointSourceLink sl(sp.sourceLinks()[0].geometryId(), sp);
-    Acts::SourceLink sl(sp.sourceLinks()[0].geometryId(), sp);
-    sourceLinks.push_back(sl);
+  // for (const auto& sp:spacepoints){
+  //   // ActsExamples::SpacepointSourceLink sl(sp.sourceLinks()[0].geometryId(), sp);
+  //   Acts::SourceLink sl(sp.sourceLinks()[0].geometryId(), sp);
+  //   sourceLinks.push_back(sl);
+  // }
+
+  // Create new seeds out of the sourceLinks which contain the spacepoints
+  std::vector<std::vector<Acts::SourceLink>> sourceLinkSeeds;
+  sourceLinkSeeds.reserve(seeds.size());
+  int seedIdx = seeds.size();
+  for (int i=0; i<seedIdx; i++){
+    auto hitsList = seeds.at(i).sp();
+    std::vector<Acts::SourceLink> newSeed;
+    newSeed.reserve(3);
+    int hitIdx = 0;
+    for (const ActsExamples::SimSpacePoint* sp:hitsList){
+      Acts::SourceLink sl(sp->sourceLinks()[0].geometryId(), *sp);
+      newSeed.push_back(sl);
+      sourceLinks.push_back(sl);
+    }
+    sourceLinkSeeds.push_back(newSeed);
   } 
 
   // Create multitrajectories out of the initial seeds. May need to use vectorMultiTrajectory insteaed of CKF Results
   // These should contain active tips that we can use to select hits for prediction
   std::vector<Acts::CombinatorialKalmanFilterResult<Acts::VectorMultiTrajectory>> seedTraj;
-  for(int seedIdx=0; seedIdx<seeds.size(); seedIdx++){
+  for(auto& seed:sourceLinkSeeds){
     Acts::CombinatorialKalmanFilterResult<Acts::VectorMultiTrajectory> result;
-    //auto hitsList = seeds.at(seedIdx).sp();
-    
-    for(auto it = sourceLinks.begin(); it != sourceLinks.end(); it++){
+    auto stateBuffer = std::make_shared<Acts::VectorMultiTrajectory>();
+    result.stateBuffer = stateBuffer;
+    size_t tsi = std::numeric_limits<std::uint32_t>::max(); //kInvalid original type
+    for(auto it = seed.begin(); it != seed.end(); it++){
       result.trackStateCandidates.clear();
       // result.stateBuffer->clear();
       result.activeTips.clear();
       Acts::TrackStatePropMask mask = Acts::TrackStatePropMask::Predicted;
       // size_t trackTip = (*it)->sourceLinks()[0].template get<ActsExamples::IndexSourceLink>().index();
       Acts::CombinatorialKalmanFilterTipState tipState; // Not needed for NN yet. Leave it empty. nMeasurements or nHoles might be useful
-      auto stateBuffer = std::make_shared<Acts::VectorMultiTrajectory>();
-      result.stateBuffer = stateBuffer;
-      size_t tsi = result.stateBuffer->addTrackState();
+      tsi = result.stateBuffer->addTrackState(mask, tsi);
       auto ts = result.stateBuffer->getTrackState(tsi);
       ts.setUncalibratedSourceLink((*it));
       result.trackStateCandidates.push_back(ts);
@@ -79,9 +95,17 @@ ActsExamples::ProcessCode ActsExamples::HitSearchMLAlgorithm::execute(const Algo
     seedTraj.emplace_back(result);
   }
 
-  auto tip  = seedTraj[0].activeTips[0];
-  auto tmp = seedTraj[0].stateBuffer->getTrackState(tip.first).getUncalibratedSourceLink();
-  auto sp = tmp.template get<ActsExamples::SimSpacePoint>();
+
+  // Predict and hit search
+  for (auto& traj:seedTraj){
+    Acts::NetworkBatchInput networkInput = ActsExamples::HitSearchMLAlgorithm::BatchTracksForGeoPrediction(traj);
+    auto encDetectorID = m_NNDetectorClassifier.PredictVolumeAndLayer(networkInput);
+    Acts::NetworkBatchInput networkAppendedInput(networkInput.rows(), networkInput.cols()+encDetectorID.cols());
+    networkAppendedInput << networkInput, encDetectorID;
+    auto predCoor = m_NNHitPredictor.PredictHitCoordinate(networkAppendedInput); //matrix of predicted hit coordinates x,y,z
+  
+    std::cout<<predCoor<<std::endl;
+  }
 
 
   return ActsExamples::ProcessCode::SUCCESS;
@@ -106,8 +130,7 @@ Acts::NetworkBatchInput ActsExamples::HitSearchMLAlgorithm::BatchTracksForGeoPre
 
 // Use active tips from a CKF Result as input. How to interface with MultiTrajectory to use visitBackwards?
 Acts::NetworkBatchInput ActsExamples::HitSearchMLAlgorithm::BatchTracksForGeoPrediction(
-  Acts::CombinatorialKalmanFilterResult<Acts::VectorMultiTrajectory> tracks,
-  std::vector<Acts::SourceLink> sourceLinks){
+  Acts::CombinatorialKalmanFilterResult<Acts::VectorMultiTrajectory> tracks) const {
 
   // tracks.trackStateCandidattes returns the multitrajectory?
   Acts::NetworkBatchInput networkInput(tracks.activeTips.size(), 9);
