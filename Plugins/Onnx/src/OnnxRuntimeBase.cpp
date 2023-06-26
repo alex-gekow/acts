@@ -156,8 +156,6 @@ std::map<int, Eigen::MatrixXf> Acts::OnnxRuntimeBase::runONNXInferenceMultilayer
         "size");
   }
 
-  std::cout<<"batch size "<<batchSize<<std::endl;
-
   // Create input tensor object from data values
   // note: this assumes the model has only 1 input node
   Ort::MemoryInfo memoryInfo =

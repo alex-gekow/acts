@@ -38,20 +38,22 @@ ActsExamples::ProcessCode ActsExamples::HitSearchMLAlgorithm::execute(const Algo
   5. Hit Search for each tip. (Grow the multitrajectories)
   6. Repeat from step (3)
   */
+
+  float uncertainty = 15; // in mm
   
   // Why not make sourceLinks and spacepoints shared_ptr??
   // const auto& sourceLinks = ctx.eventStore.get<IndexSourceLinkContainer>(m_cfg.inputSourceLinks);
   const auto& seeds       = ctx.eventStore.get<SimSeedContainer>(m_cfg.inputSeeds);
   const auto& spacepoints = ctx.eventStore.get<SimSpacePointContainer>(m_cfg.inputSpacePoints);
 
+  // std::cout<<"--- spacepoints in event ---"<<std::endl;
+  // for(const auto& sp:spacepoints){
+  //   std::cout<<sp.x()<<" "<<sp.y()<<" "<<sp.z()<<std::endl;
+  // }
+
   // Create collection of sourceLinks built from spacepoints rather than measurement indices
   // Possible to use SpacepointSourceLinks instead of Acts::SourceLink?
-  std::vector<Acts::SourceLink> sourceLinks;
-  // for (const auto& sp:spacepoints){
-  //   // ActsExamples::SpacepointSourceLink sl(sp.sourceLinks()[0].geometryId(), sp);
-  //   Acts::SourceLink sl(sp.sourceLinks()[0].geometryId(), sp);
-  //   sourceLinks.push_back(sl);
-  // }
+  std::vector<Acts::SourceLink> spacepointSourceLinks;
 
   // Create new seeds out of the sourceLinks which contain the spacepoints
   std::vector<std::vector<Acts::SourceLink>> sourceLinkSeeds;
@@ -62,11 +64,14 @@ ActsExamples::ProcessCode ActsExamples::HitSearchMLAlgorithm::execute(const Algo
     std::vector<Acts::SourceLink> newSeed;
     newSeed.reserve(3);
     int hitIdx = 0;
+    // std::cout<<"--- seeds ---"<<std::endl;
     for (const ActsExamples::SimSpacePoint* sp:hitsList){
       Acts::SourceLink sl(sp->sourceLinks()[0].geometryId(), *sp);
+      // std::cout<<sp->x()<<" "<<sp->y()<<" "<<sp->z();
       newSeed.push_back(sl);
-      sourceLinks.push_back(sl);
+      spacepointSourceLinks.push_back(sl);
     }
+    // std::cout<<std::endl;
     sourceLinkSeeds.push_back(newSeed);
   } 
 
@@ -83,7 +88,6 @@ ActsExamples::ProcessCode ActsExamples::HitSearchMLAlgorithm::execute(const Algo
       // result.stateBuffer->clear();
       result.activeTips.clear();
       Acts::TrackStatePropMask mask = Acts::TrackStatePropMask::Predicted;
-      // size_t trackTip = (*it)->sourceLinks()[0].template get<ActsExamples::IndexSourceLink>().index();
       Acts::CombinatorialKalmanFilterTipState tipState; // Not needed for NN yet. Leave it empty. nMeasurements or nHoles might be useful
       tsi = result.stateBuffer->addTrackState(mask, tsi);
       auto ts = result.stateBuffer->getTrackState(tsi);
@@ -97,15 +101,51 @@ ActsExamples::ProcessCode ActsExamples::HitSearchMLAlgorithm::execute(const Algo
 
 
   // Predict and hit search
-  for (auto& traj:seedTraj){
-    Acts::NetworkBatchInput networkInput = ActsExamples::HitSearchMLAlgorithm::BatchTracksForGeoPrediction(traj);
-    auto encDetectorID = m_NNDetectorClassifier.PredictVolumeAndLayer(networkInput);
-    Acts::NetworkBatchInput networkAppendedInput(networkInput.rows(), networkInput.cols()+encDetectorID.cols());
-    networkAppendedInput << networkInput, encDetectorID;
-    auto predCoor = m_NNHitPredictor.PredictHitCoordinate(networkAppendedInput); //matrix of predicted hit coordinates x,y,z
-  
-    std::cout<<predCoor<<std::endl;
-  }
+  int totalActiveTips = 999;
+  while (totalActiveTips > 0){
+    int tmpActiveTipCount = 0;
+    for (auto& traj:seedTraj){
+      if(traj.activeTips.size() == 0){
+        continue;
+      }
+      tmpActiveTipCount = tmpActiveTipCount + traj.activeTips.size();
+      Acts::NetworkBatchInput networkInput = ActsExamples::HitSearchMLAlgorithm::BatchTracksForGeoPrediction(traj);
+      auto encDetectorID = m_NNDetectorClassifier.PredictVolumeAndLayer(networkInput);
+      Acts::NetworkBatchInput networkAppendedInput(networkInput.rows(), networkInput.cols()+encDetectorID.cols());
+      networkAppendedInput << networkInput, encDetectorID;
+      auto predCoor = m_NNHitPredictor.PredictHitCoordinate(networkAppendedInput); //matrix of predicted hit coordinates x,y,z
+      std::vector<Acts::MultiTrajectoryTraits::IndexType> tipBuffer; // Store activeTip state indices
+      tipBuffer.reserve(traj.activeTips.size());
+      for(const auto& tip:traj.activeTips){
+        tipBuffer.push_back(tip.first);
+      }
+      traj.activeTips.clear();
+      // Compute the distance between predicted hit coordinates and hits in the detector
+      // TODO: Can be more heavily optimized by caching hits by volume and layer first
+      // order of activeTips corresponds to row order in prediction matrix
+      for(int idx=0; idx<tipBuffer.size(); idx++){
+        auto row = predCoor.row(idx);
+        for(const auto& sl:spacepointSourceLinks){
+          auto sp = sl.template get<ActsExamples::SimSpacePoint>();
+          float distance = std::hypot( row[0] - sp.x(), row[1]-sp.y(), row[2]-sp.z() );
+          if (distance < uncertainty){
+            Acts::TrackStatePropMask mask = Acts::TrackStatePropMask::Predicted;
+            auto tsi = tipBuffer[idx];
+            tsi = traj.stateBuffer->addTrackState(mask, tsi);
+            auto ts = traj.stateBuffer->getTrackState(tsi);
+            ts.setUncalibratedSourceLink(sl);
+            // Do not create active tip if the last hit is at the edge of the detector
+            // TODO: constrain by volume/layer rather than coordinate
+            if(sp.r() < 1000 && sp.z() < 2950){
+              Acts::CombinatorialKalmanFilterTipState tipState;
+              traj.activeTips.emplace_back(tsi, tipState);
+            }
+          }
+        }
+      } // active tip loop
+    } // SeedTraj loop
+    totalActiveTips = tmpActiveTipCount;
+  } // While loop
 
 
   return ActsExamples::ProcessCode::SUCCESS;
