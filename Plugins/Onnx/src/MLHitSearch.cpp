@@ -20,7 +20,6 @@ Eigen::MatrixXf Acts::MLDetectorClassifier::PredictVolumeAndLayer(Acts::NetworkB
   std::map<int, Eigen::MatrixXf> outputTensorValuesMap = runONNXInferenceMultilayerOutput(inputTensorValues);
   // The first layer should be (batch,15) volume OHE
   // The second layer should be (batch, 30) layer OHE
-  
   for (int i=0; i<batchSize; i++){
 
     // cast eigen vectors to std::vectors to use argmax
@@ -28,17 +27,17 @@ Eigen::MatrixXf Acts::MLDetectorClassifier::PredictVolumeAndLayer(Acts::NetworkB
     auto volEigenVec = outputTensorValuesMap[1].row(i);
     auto layEigenVec = outputTensorValuesMap[0].row(i);
 
-    std::vector<float> volVec(volEigenVec.data(), volEigenVec.data() + volEigenVec.size());
-    std::vector<float> layVec(layEigenVec.data(), layEigenVec.data() + layEigenVec.size());
+    Eigen::MatrixXf::Index predVolume;
+    Eigen::MatrixXf::Index predLayer;
+    volEigenVec.maxCoeff(&predVolume);
+    layEigenVec.maxCoeff(&predLayer);
 
-    int predVolume = static_cast<int>(arg_max(volVec));
-    int predLayer  = static_cast<int>(arg_max(layVec));
     Eigen::VectorXf onehotencoding = Eigen::VectorXf::Zero(45); 
-    onehotencoding[predVolume] = 1;
-    onehotencoding[15+predLayer] = 1;
+    onehotencoding[ static_cast<int>(predVolume)] = 1;
+    onehotencoding[ static_cast<int>(15+predLayer)] = 1;
     outputs.row(i) = onehotencoding;
   }
-    return outputs;
+  return outputs;
 }
 
 // prediction function

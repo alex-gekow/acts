@@ -128,6 +128,7 @@ std::vector<std::vector<float>> Acts::OnnxRuntimeBase::runONNXInference(
       outputTensorValues[i][j] = outputTensor[i * outputNodeDims[1] + j];
     }
   }
+
   return outputTensorValues;
 }
 
@@ -206,6 +207,7 @@ std::map<int, Eigen::MatrixXf> Acts::OnnxRuntimeBase::runONNXInferenceMultilayer
         vec(k) = val;
       } // output nodes (15 or 30 depending on i for classifer. i=0 -> 30 output nodes, i=1 -> 15 output nodes)
       batchMatrix.row(j) = vec;
+      //std::cout<<"row "<<j<<"\n"<<batchMatrix.row(j)<<std::endl;;
     } // batch
     outputTensorMap[i] = batchMatrix;
   } // output layers
