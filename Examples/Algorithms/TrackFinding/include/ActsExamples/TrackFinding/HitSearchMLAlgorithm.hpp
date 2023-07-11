@@ -70,8 +70,10 @@ class HitSearchMLAlgorithm final: public IAlgorithm {
     Acts::NetworkBatchInput BatchTracksForGeoPrediction(std::vector<SimSpacePointContainer> hitTracks);
     Acts::NetworkBatchInput BatchTracksForGeoPrediction(Acts::CombinatorialKalmanFilterResult<Acts::VectorMultiTrajectory> tracks) const;
     void BatchedHitSearch(std::vector<Acts::CombinatorialKalmanFilterResult<Acts::VectorMultiTrajectory>>& seedTrajectories,
-        const std::vector<Acts::SourceLink> spacepointSourceLinks, const std::map<std::pair<int,int>,std::vector<Acts::SourceLink*>>& cachedSpacePoints, float uncertainty=10) const;
-
+        const std::vector<std::shared_ptr<Acts::SourceLink>> spacepointSourceLinks, const std::map<std::pair<int,int>,std::vector<std::shared_ptr<Acts::SourceLink>>>& cachedSpacePoints, float uncertainty=10) const;
+   
+    // void BatchedHitSearch(std::vector<Acts::CombinatorialKalmanFilterResult<Acts::VectorMultiTrajectory>>& seedTrajectories, std::vector<Acts::CombinatorialKalmanFilterResult<Acts::VectorMultiTrajectory>>& indexTrajectories,
+    //     const std::vector<std::shared_ptr<Acts::SourceLink>> spacepointSourceLinks, const std::map<std::pair<int,int>, std::vector<std::shared_ptr<Acts::SourceLink>>>& cachedSpacePoints, float uncertainty) const;
 
     private:
     Config m_cfg;
@@ -123,7 +125,7 @@ class SpacepointSourceLink {
   SpacepointSourceLink& operator=(const SpacepointSourceLink&) = default;
   SpacepointSourceLink& operator=(SpacepointSourceLink&&) = default;
 
-  /// Access the index.
+  /// Access the spacepoint.
   const SimSpacePoint sp() const { return m_spacepoint; }
 
   Acts::GeometryIdentifier geometryId() const { return m_geometryId; }

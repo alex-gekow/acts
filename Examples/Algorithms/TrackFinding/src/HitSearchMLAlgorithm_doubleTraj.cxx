@@ -29,7 +29,7 @@ ActsExamples::HitSearchMLAlgorithm::HitSearchMLAlgorithm(
   }
 
 }
-
+/*Usees two trajectories. One to store the index source links. One to store the spacepoints*/
 ActsExamples::ProcessCode ActsExamples::HitSearchMLAlgorithm::execute(const AlgorithmContext& ctx) const {
 
   /*
@@ -42,7 +42,7 @@ ActsExamples::ProcessCode ActsExamples::HitSearchMLAlgorithm::execute(const Algo
   */
   
   // Why not make sourceLinks and spacepoints shared_ptr??
-  const auto& indexSourceLinks = ctx.eventStore.get<IndexSourceLinkContainer>(m_cfg.inputSourceLinks);
+  const auto& sourceLinks = ctx.eventStore.get<IndexSourceLinkContainer>(m_cfg.inputSourceLinks);
   const auto& seeds       = ctx.eventStore.get<SimSeedContainer>(m_cfg.inputSeeds);
   const auto& spacepoints = ctx.eventStore.get<SimSpacePointContainer>(m_cfg.inputSpacePoints);
 
@@ -141,66 +141,71 @@ ActsExamples::ProcessCode ActsExamples::HitSearchMLAlgorithm::execute(const Algo
     sourceLinkSeeds.push_back(newSeed);
   } 
 
-  // Create map from measurement index to spacepoint
-  std::map<Index,ActsExamples::SimSpacePoint> IndexSpacePointMap;
-  for(const auto& sp:thinned_spacepoints){
-    auto idx = sp->sourcelink()[0].template get<ActsExamples::IndexSourceLink>().index();
-    map[idx] = sp;
-    if (volumeID == 22 || volumeID == 23 || volumeID == 24){
-      idx = sp->sourcelink()[1].template get<ActsExamples::IndexSourceLink>().index();
-      map[idx] = sp;
-    }
-  }
-
   // Create multitrajectories out of the initial seeds
   // These should contain active tips that we can use to select hits for prediction
   std::vector<Acts::CombinatorialKalmanFilterResult<Acts::VectorMultiTrajectory>> seedTraj;
+
+  // MTJ to store indexSourceLinks necessary for precision fit.
+  // Wasetful duplication of VMTJ, but no better way to do this yet
+  std::vector<Acts::CombinatorialKalmanFilterResult<Acts::VectorMultiTrajectory>> IndexTraj;
+
   for(auto& seed:sourceLinkSeeds){
     Acts::CombinatorialKalmanFilterResult<Acts::VectorMultiTrajectory> result;
+    Acts::CombinatorialKalmanFilterResult<Acts::VectorMultiTrajectory> idx_result;
     auto stateBuffer = std::make_shared<Acts::VectorMultiTrajectory>();
+    auto idx_stateBuffer = std::make_shared<Acts::VectorMultiTrajectory>();
     result.stateBuffer = stateBuffer;
+    idx_result.stateBuffer = idx_stateBuffer;
     size_t tsi = std::numeric_limits<std::uint32_t>::max(); //kInvalid original type
+
     for(auto it = seed.begin(); it != seed.end(); it++){
       result.trackStateCandidates.clear();
       // result.stateBuffer->clear();
       result.activeTips.clear();
       Acts::TrackStatePropMask mask = Acts::TrackStatePropMask::Predicted;
       Acts::CombinatorialKalmanFilterTipState tipState; // Not needed for NN yet. Leave it empty. nMeasurements or nHoles attributes might be useful in the future
+      
+      auto idx_tsi = idx_result.stateBuffer->addTrackState(mask, tsi); // idx_tsi should be the same as tsi. No need to use both
       tsi = result.stateBuffer->addTrackState(mask, tsi);
+
       auto ts = result.stateBuffer->getTrackState(tsi);
+      auto idx_ts = idx_result.stateBuffer->getTrackState(tsi);
+
       ts.setUncalibratedSourceLink((**it));
+      idx_ts.setUncalibratedSourceLink((*it)->template get<ActsExamples::SimSpacePoint>().sourceLinks()[0]);
+
       result.trackStateCandidates.push_back(ts);
-      //result.lastTrackIndices.emplace_back(trackTip);
       result.activeTips.emplace_back(tsi, tipState); 
     }
     seedTraj.emplace_back(result);
+    IndexTraj.emplace_back(idx_result);
   }
 
-  ActsExamples::HitSearchMLAlgorithm::BatchedHitSearch(seedTraj, spacepointSourceLinks,cachedSpacePoints, 20);
+  // ActsExamples::HitSearchMLAlgorithm::BatchedHitSearch(seedTraj, spacepointSourceLinks,cachedSpacePoints, 20);
+  ActsExamples::HitSearchMLAlgorithm::BatchedHitSearch(seedTraj, IndexTraj, spacepointSourceLinks,cachedSpacePoints, 20);
 
-  for(const auto& v:seedTraj){
-    std::cout<<v.lastTrackIndices.size()<<std::endl;
-    if(v.lastTrackIndices.size() > 10){
-      std::cout<<"built track"<<std::endl;
-      for(auto iendpoint:v.lastTrackIndices){
-        // auto iendpoint = v.lastTrackIndices[0];
-        while (true) {
-          auto ts = v.stateBuffer->getTrackState(iendpoint);
-          auto sourcelink = ts.getUncalibratedSourceLink(); 
-          std::cout<<sourcelink.template get<ActsExamples::SimSpacePoint>().x()<<" "<<sourcelink.template get<ActsExamples::SimSpacePoint>().y()<<" "<<sourcelink.template get<ActsExamples::SimSpacePoint>().z()<<std::endl;
-          if(!ts.hasPrevious()) break;
-          iendpoint = ts.previous();
-        }
-        std::cout<<std::endl;
-        // break;
-      }
-    }
-  }
+  // for(const auto& v:seedTraj){
+  //   std::cout<<v.lastTrackIndices.size()<<std::endl;
+  //   if(v.lastTrackIndices.size() > 1){
+  //     std::cout<<"built track"<<std::endl;
+  //     auto iendpoint = v.lastTrackIndices[0];
+  //     while (true) {
+  //       auto ts = v.stateBuffer->getTrackState(iendpoint);
+  //       auto sourcelink = ts.getUncalibratedSourceLink(); 
+  //       std::cout<<sourcelink.template get<ActsExamples::SimSpacePoint>().x()<<" "<<sourcelink.template get<ActsExamples::SimSpacePoint>().y()<<" "<<sourcelink.template get<ActsExamples::SimSpacePoint>().z()<<std::endl;
+  //       if(!ts.hasPrevious()) break;
+  //       iendpoint = ts.previous();
+  //     }
+  //     break;
+  //   }
+  // }
 
   std::cout<<"trajectory sizes"<<std::endl;
   for(const auto& v:seedTraj){
     std::cout<<v.lastTrackIndices.size()<<std::endl;
   }
+
+  // ActsExamples::HitSearchMLAlgorithm::MultiTrajectorySpacepointToIndex(seedTraj);
 
   return ActsExamples::ProcessCode::SUCCESS;
 }
@@ -260,7 +265,7 @@ Acts::NetworkBatchInput ActsExamples::HitSearchMLAlgorithm::BatchTracksForGeoPre
   return networkInput;
 }
 
-void ActsExamples::HitSearchMLAlgorithm::BatchedHitSearch(std::vector<Acts::CombinatorialKalmanFilterResult<Acts::VectorMultiTrajectory>>& seedTrajectories,
+void ActsExamples::HitSearchMLAlgorithm::BatchedHitSearch(std::vector<Acts::CombinatorialKalmanFilterResult<Acts::VectorMultiTrajectory>>& seedTrajectories, std::vector<Acts::CombinatorialKalmanFilterResult<Acts::VectorMultiTrajectory>>& indexTrajectories,
   const std::vector<SourceLinkPtr> spacepointSourceLinks, const std::map<std::pair<int,int>,std::vector<SourceLinkPtr>>& cachedSpacePoints, float uncertainty) const{
   
   int totalActiveTips = 999;
@@ -301,7 +306,10 @@ void ActsExamples::HitSearchMLAlgorithm::BatchedHitSearch(std::vector<Acts::Comb
     // std::cout<<predCoor<<std::endl;
     // Perform the hit search
     unsigned int globalRowIndex = 0; //Keep count of which row we are in the prediction matrix
-    for (auto& traj:seedTrajectories){
+    for(int trajIdx=0; trajIdx<seedTrajectories.size(); trajIdx++){
+      auto traj = seedTrajectories.at(trajIdx);
+      auto idxTraj = indexTrajectories.at(trajIdx);
+    //for (auto& traj:seedTrajectories){
       if(traj.activeTips.size()==0) continue;
       std::vector<Acts::MultiTrajectoryTraits::IndexType> tipBuffer; // Store activeTip state indices
       tipBuffer.reserve(traj.activeTips.size());
@@ -318,8 +326,7 @@ void ActsExamples::HitSearchMLAlgorithm::BatchedHitSearch(std::vector<Acts::Comb
 
         // Get the predicted volume and layer 
         // auto detectorRow = encDetectorID.row( globalRowIndex + idx);
-        // Eigen::MatrixXf::Index predVolume;
-        // Eigen::MatrixXf::Index predLayer;
+        // Eigen::MatrixXf::Index predVolume, predLayer;
         // detectorRow.head<15>().maxCoeff(&predVolume);
         // detectorRow.tail<30>().maxCoeff(&predLayer);
         // auto volLayerPair = std::make_pair( static_cast<int>(predVolume), static_cast<int>(predLayer) );
@@ -342,14 +349,23 @@ void ActsExamples::HitSearchMLAlgorithm::BatchedHitSearch(std::vector<Acts::Comb
             auto tsi = tipBuffer[idx];
             Acts::TrackStatePropMask mask = Acts::TrackStatePropMask::Predicted;
             tsi = traj.stateBuffer->addTrackState(mask, tsi);
+            auto idx_tsi = idxTraj.stateBuffer->addTrackState(mask, tsi); 
+
             auto ts = traj.stateBuffer->getTrackState(tsi);
+            auto idx_ts = idxTraj.stateBuffer->getTrackState(tsi);
             ts.setUncalibratedSourceLink(sl);
+            idx_ts.setUncalibratedSourceLink(sl.template get<ActsExamples::SimSpacePoint>().sourceLinks()[0]);
 
             // Add SCT spacepoints twice
             if (volumeID == 22 || volumeID == 23 || volumeID == 24){
               tsi = traj.stateBuffer->addTrackState(mask, tsi);
               ts = traj.stateBuffer->getTrackState(tsi);
               ts.setUncalibratedSourceLink(sl);
+
+              idx_tsi = idxTraj.stateBuffer->addTrackState(mask, tsi);
+              idx_ts = idxTraj.stateBuffer->getTrackState(tsi);
+              idx_ts.setUncalibratedSourceLink(sl.template get<ActsExamples::SimSpacePoint>().sourceLinks()[1]);
+
             }
             // Do not create active tip if the last hit is at the edge of the detector
             // TODO: constrain by volume/layer rather than coordinate
@@ -359,6 +375,7 @@ void ActsExamples::HitSearchMLAlgorithm::BatchedHitSearch(std::vector<Acts::Comb
             }
             else{
               traj.lastTrackIndices.push_back(tsi);
+              idxTraj.lastTrackIndices.push_back(tsi);
             }
           }
         }
@@ -370,6 +387,53 @@ void ActsExamples::HitSearchMLAlgorithm::BatchedHitSearch(std::vector<Acts::Comb
       globalRowIndex = globalRowIndex + tipBuffer.size();
     }
     totalActiveTips = tmpActiveTipCount;
+  }
+}
+
+void ActsExamples::HitSearchMLAlgorithm::MultiTrajectorySpacepointToIndex(std::vector<Acts::CombinatorialKalmanFilterResult<Acts::VectorMultiTrajectory>>& Trajectories) const {
+  
+  for(auto& v:Trajectories){
+    std::cout<<"v"<<std::endl;
+    for(auto iendpoint: v.lastTrackIndices){
+      const Acts::SourceLink* prev_sp_sl = nullptr;
+      const Acts::SourceLink* index_sourcelink = nullptr;
+      std::cout<<"endpoint: "<<iendpoint<<std::endl;
+      while (true) {
+        auto ts = v.stateBuffer->getTrackState(iendpoint);
+        const auto sp_sourcelink = ts.getUncalibratedSourceLink();
+        if (!prev_sp_sl){
+          std::cout<<"0"<<std::endl;
+          index_sourcelink = &(sp_sourcelink.template get<ActsExamples::SimSpacePoint>().sourceLinks()[0]);
+          prev_sp_sl = &sp_sourcelink;
+          std::cout<<"b"<<std::endl;
+          ts.setUncalibratedSourceLink(*index_sourcelink);
+          std::cout<<"a"<<std::endl;
+          if(!ts.hasPrevious()) break;
+          iendpoint = ts.previous();
+          std::cout<<"c"<<std::endl;
+          continue;
+          std::cout<<"-0"<<std::endl;
+        }
+
+        if (sp_sourcelink.template get<ActsExamples::SimSpacePoint>() == (*prev_sp_sl).template get<ActsExamples::SimSpacePoint>()){ 
+          std::cout<<"1"<<std::endl;
+          index_sourcelink = &(sp_sourcelink.template get<ActsExamples::SimSpacePoint>().sourceLinks()[1]);
+          std::cout<<"-1"<<std::endl;
+        }
+        else{
+          std::cout<<"2"<<std::endl;
+          index_sourcelink = &(sp_sourcelink.template get<ActsExamples::SimSpacePoint>().sourceLinks()[0]);
+          std::cout<<"-2"<<std::endl;
+        }
+        std::cout<<"3"<<std::endl;
+        prev_sp_sl = &sp_sourcelink;
+        ts.setUncalibratedSourceLink(*index_sourcelink);
+        std::cout<<"4"<<std::endl;
+        if(!ts.hasPrevious()) break;
+        iendpoint = ts.previous();
+      }
+      break;
+    }
   }
 }
 
