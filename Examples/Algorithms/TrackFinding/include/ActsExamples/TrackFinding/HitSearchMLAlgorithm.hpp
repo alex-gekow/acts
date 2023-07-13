@@ -35,6 +35,7 @@ namespace ActsExamples {
 //    b) the track reaches the end of the detector
 
 class HitSearchMLAlgorithm final: public IAlgorithm {
+    using SourceLinkPtr = std::shared_ptr<Acts::SourceLink>;
     public:
      struct Config  {
         // Input seed collection
@@ -68,12 +69,19 @@ class HitSearchMLAlgorithm final: public IAlgorithm {
     const Config& config() const { return m_cfg; }
 
     Acts::NetworkBatchInput BatchTracksForGeoPrediction(std::vector<SimSpacePointContainer> hitTracks);
-    Acts::NetworkBatchInput BatchTracksForGeoPrediction(Acts::CombinatorialKalmanFilterResult<Acts::VectorMultiTrajectory> tracks) const;
-    void BatchedHitSearch(std::vector<Acts::CombinatorialKalmanFilterResult<Acts::VectorMultiTrajectory>>& seedTrajectories,
-        const std::vector<std::shared_ptr<Acts::SourceLink>> spacepointSourceLinks, const std::map<std::pair<int,int>,std::vector<std::shared_ptr<Acts::SourceLink>>>& cachedSpacePoints, float uncertainty=10) const;
+    Acts::NetworkBatchInput BatchTracksForGeoPrediction(Acts::CombinatorialKalmanFilterResult<Acts::VectorMultiTrajectory> tracks,std::map<Index,std::shared_ptr<ActsExamples::SimSpacePoint>>& IndexSpacePointMap) const;
+    
+    // void BatchedHitSearch(std::vector<Acts::CombinatorialKalmanFilterResult<Acts::VectorMultiTrajectory>>& seedTrajectories,
+    //     const std::vector<std::shared_ptr<Acts::SourceLink>> spacepointSourceLinks, const std::map<std::pair<int,int>,std::vector<std::shared_ptr<Acts::SourceLink>>>& cachedSpacePoints, float uncertainty=10) const;
    
     // void BatchedHitSearch(std::vector<Acts::CombinatorialKalmanFilterResult<Acts::VectorMultiTrajectory>>& seedTrajectories, std::vector<Acts::CombinatorialKalmanFilterResult<Acts::VectorMultiTrajectory>>& indexTrajectories,
     //     const std::vector<std::shared_ptr<Acts::SourceLink>> spacepointSourceLinks, const std::map<std::pair<int,int>, std::vector<std::shared_ptr<Acts::SourceLink>>>& cachedSpacePoints, float uncertainty) const;
+
+    void BatchedHitSearch(std::vector<Acts::CombinatorialKalmanFilterResult<Acts::VectorMultiTrajectory>>& seedTrajectories,
+        const SimSpacePointContainer& spacepoints, std::map<Index, std::shared_ptr<ActsExamples::SimSpacePoint>>& IndexSpacePointMap, const std::map<std::pair<int,int>,std::vector<SourceLinkPtr>>& cachedSpacePoints, float uncertainty) const;
+    
+    
+    void MultiTrajectorySpacepointToIndex(std::vector<Acts::CombinatorialKalmanFilterResult<Acts::VectorMultiTrajectory>>& Trajectories) const;
 
     private:
     Config m_cfg;
