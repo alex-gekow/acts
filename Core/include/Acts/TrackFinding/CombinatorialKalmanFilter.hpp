@@ -234,6 +234,10 @@ struct CombinatorialKalmanFilterResult {
                         CombinatorialKalmanFilterTipState>>
       activeTips;
 
+  std::vector<std::pair<MultiTrajectoryTraits::IndexType,
+                        CombinatorialKalmanFilterTipState>>
+      activeTipBuffer;
+      
   // The indices of track states and corresponding source links on different
   // surfaces
   std::unordered_map<const Surface*, std::unordered_map<size_t, size_t>>

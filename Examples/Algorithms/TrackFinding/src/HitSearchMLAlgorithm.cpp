@@ -92,7 +92,7 @@ ActsExamples::ProcessCode ActsExamples::HitSearchMLAlgorithm::execute(const Algo
   }
   
 
-  // std::cout<<"spacepoints size: "<<spacepoints.size()<<" thinned sp size: "<<thinned_spacepoints.size()<<" seed size: "<<seeds.size()<<" thinned seed size: "<<thinned_seeds.size()<<std::endl;
+  std::cout<<"spacepoints size: "<<spacepoints.size()<<" thinned sp size: "<<thinned_spacepoints.size()<<" seed size: "<<seeds.size()<<" thinned seed size: "<<thinned_seeds.size()<<std::endl;
   
   // std::cout<<"--- spacepoints in event ---"<<std::endl;
   // for(const auto& sp:spacepoints){
@@ -121,7 +121,7 @@ ActsExamples::ProcessCode ActsExamples::HitSearchMLAlgorithm::execute(const Algo
   
   // Create map from measurement index to spacepoint
   std::map<Index, std::shared_ptr<ActsExamples::SimSpacePoint>> IndexSpacePointMap;
-  for(const auto& sp:thinned_spacepoints){
+  for(const auto& sp:spacepoints){
     auto sl = sp.sourceLinks()[0].template get<ActsExamples::IndexSourceLink>();
     auto idx = sl.index();
     auto sp_ptr = std::make_shared<ActsExamples::SimSpacePoint>(sp);
@@ -136,7 +136,7 @@ ActsExamples::ProcessCode ActsExamples::HitSearchMLAlgorithm::execute(const Algo
   // Create multitrajectories out of the initial seeds
   // These should contain active tips that we can use to select hits for prediction
   std::vector<Acts::CombinatorialKalmanFilterResult<Acts::VectorMultiTrajectory>> seedTraj;
-  for(auto& seed:thinned_seeds){
+  for(auto& seed:seeds){
     Acts::CombinatorialKalmanFilterResult<Acts::VectorMultiTrajectory> result;
     auto stateBuffer = std::make_shared<Acts::VectorMultiTrajectory>();
     result.stateBuffer = stateBuffer;
@@ -157,8 +157,9 @@ ActsExamples::ProcessCode ActsExamples::HitSearchMLAlgorithm::execute(const Algo
     }
     seedTraj.emplace_back(result);
   }
-
-  ActsExamples::HitSearchMLAlgorithm::BatchedHitSearch(seedTraj, thinned_spacepoints, IndexSpacePointMap, cachedSpacePoints, 20);
+  std::vector<Acts::CombinatorialKalmanFilterResult<Acts::VectorMultiTrajectory>> seedsToUse;
+  for (int i=0; i<12; i++) seedsToUse.push_back(seedTraj.at(i));
+  ActsExamples::HitSearchMLAlgorithm::BatchedHitSearch(seedTraj, spacepoints, IndexSpacePointMap, cachedSpacePoints, 20, 128);
 
   for(const auto& v:seedTraj){
     std::cout<<"trajectory sizes"<<std::endl;
@@ -201,7 +202,7 @@ Acts::NetworkBatchInput ActsExamples::HitSearchMLAlgorithm::BatchTracksForGeoPre
 
 // Use active tips from a CKF Result as input
 Acts::NetworkBatchInput ActsExamples::HitSearchMLAlgorithm::BatchTracksForGeoPrediction(
-  Acts::CombinatorialKalmanFilterResult<Acts::VectorMultiTrajectory> tracks, std::map<Index, std::shared_ptr<ActsExamples::SimSpacePoint>>& IndexSpacePointMap) const {
+  Acts::CombinatorialKalmanFilterResult<Acts::VectorMultiTrajectory>& tracks, std::map<Index, std::shared_ptr<ActsExamples::SimSpacePoint>>& IndexSpacePointMap) const {
 
   Acts::NetworkBatchInput networkInput(tracks.activeTips.size(), 9);
   // retrieve the last three unique hits from each track
@@ -238,6 +239,92 @@ Acts::NetworkBatchInput ActsExamples::HitSearchMLAlgorithm::BatchTracksForGeoPre
   }
 
   return networkInput;
+}
+
+int ActsExamples::HitSearchMLAlgorithm::CountAvailableTips(std::vector<Acts::CombinatorialKalmanFilterResult<Acts::VectorMultiTrajectory>>& seedTrajectories, 
+  unsigned int &startTipIdx, unsigned int &lastTipIdx, unsigned int &startTrajIdx, unsigned int &lastTrajIdx, int batch_size) const {
+  /*Count the number of active tips left to check if it is less than the desired batch size */
+  std::cout<<"counting tips. startTrajIndex "<<startTrajIdx<<" startTipIdx "<<startTipIdx<<"lastTrajIndex "<<lastTrajIdx<<" lastTipIdx "<<lastTipIdx<<std::endl;
+
+  int totalTipCount = 0;
+  for (int traj_idx = startTrajIdx; traj_idx<seedTrajectories.size(); traj_idx++){
+    if (seedTrajectories.at(traj_idx).activeTips.size() == 0) continue;
+    int startIdx;
+    if(traj_idx == startTrajIdx) startIdx = startTipIdx;
+    else startIdx = 0;
+    for (int tip_idx=startTipIdx; tip_idx<seedTrajectories.at(traj_idx).activeTips.size(); tip_idx++){
+      totalTipCount++;
+      if (totalTipCount == batch_size) {
+        lastTrajIdx = traj_idx;
+        lastTipIdx = tip_idx;
+        return batch_size;
+      }
+    }
+  }
+  lastTrajIdx = seedTrajectories.size() - 1;
+  lastTipIdx = seedTrajectories.back().activeTips.size() - 1;
+  return totalTipCount;
+}
+
+void ActsExamples::HitSearchMLAlgorithm::BatchTracksForGeoPrediction(
+  std::vector<Acts::CombinatorialKalmanFilterResult<Acts::VectorMultiTrajectory>>& tracks, Acts::NetworkBatchInput& networkInput, std::map<Index, std::shared_ptr<ActsExamples::SimSpacePoint>>& IndexSpacePointMap,
+   unsigned int &startTipIdx, unsigned int &lastTipIdx, unsigned int &startTrajIdx, unsigned int &lastTrajIdx, unsigned int batch_size) const {
+  
+  // retrieve the last three unique hits from each track
+  std::cout<<"batching"<<std::endl;
+  std::cout<<"startTrajIndex "<<startTrajIdx<<" startTipIdx "<<startTipIdx<<"lastTrajIndex "<<lastTrajIdx<<" lastTipIdx "<<lastTipIdx<<std::endl;
+
+  int nUsedTips=0;
+  for (int traj_idx = startTrajIdx; traj_idx<tracks.size(); traj_idx++){
+    std::cout<<"traj index "<<traj_idx<<std::endl;
+    std::cout<<"tracks size "<<tracks.size()<<std::endl;
+    auto traj = tracks[traj_idx]; 
+    std::cout<<"number of tips in traj: "<<traj.activeTips.size()<<std::endl;
+    if (traj.activeTips.size() == 0) continue;
+    
+    int stopTipIdx;
+    if (lastTrajIdx == traj_idx) stopTipIdx = lastTipIdx+1;
+    else stopTipIdx = traj.activeTips.size();
+    // lastTrajIdx = traj_idx; already done when counting available tips
+
+
+    int startingIdx;
+    if(traj_idx == startTrajIdx) startingIdx = startTipIdx;
+    else startingIdx = 0;
+    for (int i=startingIdx; i<stopTipIdx; i++){
+      std::cout<<"tip index "<<i<<std::endl;
+      auto tip = traj.activeTips.at(i);
+      // lastTipIdx = i; already done when counting available tips
+      int hitCounter = 2;
+      auto tipIdx = tip.first;
+      Acts::VectorMultiTrajectory::ConstTrackStateProxy* prev_ts = nullptr;
+      while(hitCounter >= 0){
+        auto ts  = traj.stateBuffer->getTrackState(tipIdx);
+        auto index_sl = ts.getUncalibratedSourceLink().template get<ActsExamples::IndexSourceLink>();
+        auto sp = IndexSpacePointMap[index_sl.index()];
+        // If the previous spacepoint is the same, get the one before it
+        if(prev_ts){
+          auto prev_index_sl = prev_ts->getUncalibratedSourceLink().template get<ActsExamples::IndexSourceLink>();
+          auto prev_sp = IndexSpacePointMap[prev_index_sl.index()];
+          if(sp == prev_sp){
+            tipIdx = ts.previous();
+            continue;
+          }
+        }
+        networkInput(nUsedTips, hitCounter*3    ) =  sp->x() / m_NNDetectorClassifier.getXScale();
+        networkInput(nUsedTips, hitCounter*3 + 1) =  sp->y() / m_NNDetectorClassifier.getYScale();
+        networkInput(nUsedTips, hitCounter*3 + 2) =  sp->z() / m_NNDetectorClassifier.getZScale();
+        // std::cout<<"trackIndex: "<<traj_idx<<" hitCounter: "<<hitCounter<<" "<<sp->x()<<" "<<sp->y()<<" "<<sp->z()<<std::endl;
+        tipIdx = ts.previous();
+        hitCounter--;
+      }
+      nUsedTips++;
+      std::cout<<"nUsedTips "<<nUsedTips<<std::endl;
+      if( nUsedTips == networkInput.rows()) break;
+    }
+  }
+  std::cout<<"done batching"<<std::endl;
+  // std::cout<<networkInput<<std::endl;
 }
 
 void ActsExamples::HitSearchMLAlgorithm::BatchedHitSearch(std::vector<Acts::CombinatorialKalmanFilterResult<Acts::VectorMultiTrajectory>>& seedTrajectories,
@@ -351,6 +438,146 @@ void ActsExamples::HitSearchMLAlgorithm::BatchedHitSearch(std::vector<Acts::Comb
   }
 }
 
+void ActsExamples::HitSearchMLAlgorithm::BatchedHitSearch(std::vector<Acts::CombinatorialKalmanFilterResult<Acts::VectorMultiTrajectory>>& seedTrajectories,
+  const SimSpacePointContainer& spacepoints, std::map<Index, std::shared_ptr<ActsExamples::SimSpacePoint>>& IndexSpacePointMap, const std::map<std::pair<int,int>,std::vector<SourceLinkPtr>>& cachedSpacePoints, float uncertainty, int batch_size) const{
+  
+  int totalActiveTips = 999;
+  while (totalActiveTips > 0){
+    int tmpActiveTipCount = 0;
+    std::cout<<"total active tip count "<<totalActiveTips<<std::endl;
+    // Batch all active tips for volume/layer classification
+    // Get the first batch
+    // Acts::NetworkBatchInput batchedInput = ActsExamples::HitSearchMLAlgorithm::BatchTracksForGeoPrediction(seedTrajectories[0]);
+    bool allTrajectories = false;
+    unsigned int startTrajIdx = 0;
+    unsigned int startTipIdx = 0;
+
+    while (!allTrajectories){
+      std::cout<<"start of loop"<<std::endl;
+      unsigned int lastTrajIdx = 0;
+      unsigned int lastTipIdx = 0;
+      std::cout<<"starting trajectory index "<<startTrajIdx<<"starting tip index "<<startTipIdx<<std::endl;
+      int nRows = ActsExamples::HitSearchMLAlgorithm::CountAvailableTips(seedTrajectories, startTipIdx, lastTipIdx, startTrajIdx, lastTrajIdx, batch_size);
+      tmpActiveTipCount = tmpActiveTipCount + nRows;
+      std::cout<<"available tips: "<<tmpActiveTipCount<<std::endl;
+      Acts::NetworkBatchInput batchedInput(nRows,9);
+      std::cout<<batchedInput<<std::endl;
+      // std::vector<Acts::CombinatorialKalmanFilterResult<Acts::VectorMultiTrajectory>>::const_iterator traj;
+      std::cout<<"startTrajIndex "<<startTrajIdx<<" startTipIdx "<<startTipIdx<<std::endl;
+      ActsExamples::HitSearchMLAlgorithm::BatchTracksForGeoPrediction(seedTrajectories, batchedInput, IndexSpacePointMap, startTipIdx, lastTipIdx, startTrajIdx, lastTrajIdx, batch_size);
+      std::cout<<"batchedInput: \n";
+      std::cout<<batchedInput<<std::endl;
+
+      //predict the detectorIDs
+      auto encDetectorID = m_NNDetectorClassifier.PredictVolumeAndLayer(batchedInput);
+      //append predictions to the original input
+      Acts::NetworkBatchInput batchedAppendedInput(batchedInput.rows(), batchedInput.cols()+encDetectorID.cols());
+      batchedAppendedInput << batchedInput, encDetectorID;
+      // std::cout<<"batched input"<<std::endl;
+      // std::cout<<batchedAppendedInput<<std::endl;
+      // Predict the hit coordinates
+      auto predCoor = m_NNHitPredictor.PredictHitCoordinate(batchedAppendedInput);
+      // std::cout<<"predicted"<<std::endl; 
+      // std::cout<<predCoor<<std::endl;
+
+      // Perform the hit search
+      int currentRow = 0;
+      for (int i=startTrajIdx; i<=lastTrajIdx; i++){
+        auto& traj = seedTrajectories.at(i);
+        if(traj.activeTips.size() == 0) continue;
+        std::cout<<"trajIdx "<<i<<std::endl;
+        // Compute the distance between predicted hit coordinates and hits in the detector
+        // TODO: Can be more heavily optimized by caching hits by volume and layer first
+        // order of activeTips corresponds to row order in prediction matrix
+
+        // If the whole trajectory was used, loop through it. Otherwise stop at the given index
+        unsigned int stopIdx;
+        if (i==lastTrajIdx) stopIdx = lastTipIdx+1;
+        else stopIdx = traj.activeTips.size();
+
+        for(int tip_idx=0; tip_idx<stopIdx; tip_idx++){
+          // Get the spacepoint from this tip
+          auto tsi = traj.activeTips.at(tip_idx).first;
+          auto ts = traj.stateBuffer->getTrackState(tsi);
+          auto sl = ts.getUncalibratedSourceLink();
+          auto sp = IndexSpacePointMap[sl.template get<IndexSourceLink>().index()];
+
+          auto row = predCoor.row( currentRow );
+          currentRow++;
+          std::cout<<"current spacepoint: "<<sp->x()<<", "<<sp->y()<<", "<<sp->z()<<std::endl;
+          // Get the predicted volume and layer 
+          // auto detectorRow = encDetectorID.row( globalRowIndex + tip_idx);
+          // Eigen::MatrixXf::Index predVolume;
+          // Eigen::MatrixXf::Index predLayer;
+          // detectorRow.head<15>().maxCoeff(&predVolume);
+          // detectorRow.tail<30>().maxCoeff(&predLayer);
+          // auto volLayerPair = std::make_pair( static_cast<int>(predVolume), static_cast<int>(predLayer) );
+          // auto spacePointsInDetector = cachedSpacePoints.at(volLayerPair);
+          // for(auto& sl_ptr:spacePointsInDetector){
+
+          bool matched = ActsExamples::HitSearchMLAlgorithm::FullHitSearch(traj, sp, spacepoints, row, tip_idx, uncertainty);
+          // If there was not found hit we end the track. Alternitvely we can create a spacepoint, add it to the track and continue searching
+          if(!matched){
+            traj.lastTrackIndices.push_back(traj.activeTips[tip_idx].first);
+            std::cout<<"not matched! last track indices size: "<<traj.lastTrackIndices.size()<<std::endl;
+            tmpActiveTipCount--;
+          }
+          else{
+            std::cout<<"matched"<<std::endl;
+            tmpActiveTipCount++;
+          }
+        } // active tip loop
+        // auto ts = traj.stateBuffer->getTrackState(traj.activeTips[0].first);
+        // auto sl = ts.getUncalibratedSourceLink();
+        // auto sp = IndexSpacePointMap[sl.template get<IndexSourceLink>().index()];
+        // std::cout<<"space point in active tips before swap "<<sp->x()<<", "<<sp->y()<<", "<<sp->z()<<" with index "<<sl.template get<IndexSourceLink>().index()<<std::endl;
+        // ts = traj.stateBuffer->getTrackState(traj.activeTipBuffer[0].first);
+        // sl = ts.getUncalibratedSourceLink();
+        // sp = IndexSpacePointMap[sl.template get<IndexSourceLink>().index()];
+        // std::cout<<"space point in active tips buffer before swap "<<sp->x()<<", "<<sp->y()<<", "<<sp->z()<<" with index "<<sl.template get<IndexSourceLink>().index()<<std::endl;
+        traj.activeTips.erase(traj.activeTips.begin(), traj.activeTips.begin()+stopIdx);
+
+        // If we finish the trajectory, set the starting trajIdx and tipIdx to the next one
+        // Need to do this in loop because we can't do it once the active tips are reset
+        std::cout<<"last traj index: "<<lastTrajIdx<<" lastTipIdx: "<<lastTipIdx<<std::endl;
+        std::cout<<"traj size: "<<seedTrajectories.size()-1<<" tip size: "<<seedTrajectories.at(lastTrajIdx).activeTips.size()<<std::endl;
+        if ( ( traj.activeTips.size() == 0) && (lastTrajIdx == (seedTrajectories.size()-1)) ) {
+          std::cout<<"finished traj "<<lastTrajIdx<<std::endl;
+          startTrajIdx = lastTrajIdx+1;
+          startTipIdx = 0;
+        }
+        else{
+          startTrajIdx = lastTrajIdx;
+          std::cout<<"start Traj Idx: "<<startTrajIdx<<std::endl;;
+          startTipIdx = lastTipIdx+1;
+        }
+        
+        if(traj.activeTips.size() == 0) {
+          //traj.activeTips = traj.activeTipBuffer;
+          traj.activeTips.swap(traj.activeTipBuffer);
+          traj.activeTipBuffer.clear();
+        }
+        // tmpActiveTipCount  = tmpActiveTipCount + traj.activeTipBuffer.size();
+      } // VMTJ loop
+      
+      
+      if ( startTrajIdx == (seedTrajectories.size())){
+      // if ( (startTrajIdx == seedTrajectories.size()-1) && (startTipIdx == seedTrajectories.back().activeTips.size()-1) ){
+        std::cout<<"completed all trajectories"<<std::endl;
+        allTrajectories==true;
+        // totalActiveTips = tmpActiveTipCount;
+        break; 
+      }
+    }
+    totalActiveTips = tmpActiveTipCount;
+    std::cout<<"total active tips "<<totalActiveTips<<std::endl;
+  }
+}
+
+
+
+
+
 // void ActsExamples::HitSearchMLAlgorithm::BatchedHitSearch(std::vector<Acts::CombinatorialKalmanFilterResult<Acts::VectorMultiTrajectory>>& seedTrajectories,
 //   const std::vector<Acts::SourceLink> spacepointSourceLinks, float uncertainty) const{
   // Predict and hit search
@@ -453,4 +680,56 @@ void ActsExamples::HitSearchMLAlgorithm::BatchedHitSearch(std::vector<Acts::Comb
     }
   }
   */
+}
+
+bool ActsExamples::HitSearchMLAlgorithm::FullHitSearch(Acts::CombinatorialKalmanFilterResult<Acts::VectorMultiTrajectory>& traj, const std::shared_ptr<SimSpacePoint> spacepoint,
+  const SimSpacePointContainer& spacepoints, Eigen::VectorXf row, Acts::MultiTrajectoryTraits::IndexType tipIndex, float uncertainty) const {
+  
+  bool matched=false;
+  for(const auto& sp:spacepoints){
+    float distance = std::hypot( row[0] - sp.x(), row[1]-sp.y(), row[2]-sp.z() );
+    // std::cout<<row<<std::endl;
+    // std::cout<<sp.x()<<" "<< sp.y()<<" "<<sp.z()<<std::endl;
+    // std::cout<<"distance: "<<distance<<std::endl;
+    // If the spacepoint is in the SCT we need to add the spacepoint twice to be able to access both measurements downstream
+    // These will be replaced by IndexSourceLinks downstream
+    // Prediction must account for repeated spacepoint track states when fetching input to NNs.
+    
+    if (distance < uncertainty){
+      if( (*spacepoint) == sp) continue;
+      // std::cout<<"distance: "<<distance<<std::endl;
+      auto tsi = traj.activeTips[tipIndex].first;
+      matched = true;
+      auto volumeID = sp.sourceLinks()[0].geometryId().volume();
+      Acts::TrackStatePropMask mask = Acts::TrackStatePropMask::Predicted;
+      tsi = traj.stateBuffer->addTrackState(mask, tsi);
+      auto ts = traj.stateBuffer->getTrackState(tsi);
+      ts.setUncalibratedSourceLink(sp.sourceLinks()[0]);
+      auto sl = sp.sourceLinks()[0];
+      std::cout<<"found spacepoint "<<sp.x()<<", "<<sp.y()<<", "<<sp.z()<<"with index "<<sl.template get<IndexSourceLink>().index()<<std::endl;
+      // Add SCT spacepoints twice
+      if (volumeID == 22 || volumeID == 23 || volumeID == 24){
+        tsi = traj.stateBuffer->addTrackState(mask, tsi);
+        ts = traj.stateBuffer->getTrackState(tsi);
+        ts.setUncalibratedSourceLink(sp.sourceLinks()[1]);
+      }
+      // Do not create active tip if the last hit is at the edge of the detector
+      // TODO: constrain by volume/layer rather than coordinate
+      if(sp.r() > 1000 || std::abs(sp.z()) > 3450){
+        traj.lastTrackIndices.push_back(tsi);
+      }
+      else{
+        Acts::CombinatorialKalmanFilterTipState tipState;
+        traj.activeTipBuffer.emplace_back(tsi, tipState);
+
+        ts = traj.stateBuffer->getTrackState(tsi);
+        sl = ts.getUncalibratedSourceLink();
+        // sp = IndexSpacePointMap[sl.template get<IndexSourceLink>().index()];
+
+        std::cout<<"adding active tip of distance "<<distance<<" with index "<<sl.template get<IndexSourceLink>().index()<<std::endl;
+
+      }
+    }
+  }
+  return matched;
 }
