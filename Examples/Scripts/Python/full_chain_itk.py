@@ -25,7 +25,7 @@ from acts.examples.reconstruction import (
     HitSearchMLConfig
 )
 
-ttbar_pu200 = False
+ttbar_pu200 = True
 u = acts.UnitConstants
 geo_dir = pathlib.Path("acts-itk")
 outputDir = pathlib.Path.cwd() / "itk_output"
@@ -43,14 +43,14 @@ if not ttbar_pu200:
         s,
         MomentumConfig(1.0 * u.GeV, 10.0 * u.GeV, transverse=True),
         EtaConfig(-4.0, 4.0, uniform=True),
-        ParticleConfig(1, acts.PdgParticle.eMuon, randomizeCharge=True),
+        ParticleConfig(10, acts.PdgParticle.eMuon, randomizeCharge=True),
         rnd=rnd
     )
 else:
     addPythia8(
         s,
         hardProcess=["Top:qqbar2ttbar=on"],
-        npileup=200,
+        npileup=40,
         vtxGen=acts.examples.GaussianVertexGenerator(
             stddev=acts.Vector4(0.0125 * u.mm, 0.0125 * u.mm, 55.5 * u.mm, 5.0 * u.ns),
             mean=acts.Vector4(0, 0, 0, 0),
@@ -104,8 +104,8 @@ addHitSearchML(
     outputTracks="outputTracks",
     inputSourceLinks="sourcelinks",
     inputSpacePoints="spacepoints",
-    NNDetectorClassifier = "acts/Examples/Scripts/Python/MLHitSearch/Classification_MLP_ITK_ws3_v3.onnx",
-    NNHitPredictor =       "acts/Examples/Scripts/Python/MLHitSearch/Extrap_MLP_ITK_ws3.onnx"
+    NNDetectorClassifier = "Examples/Scripts/Python/MLHitSearch/Classification_MLP_ITK_ws3_v3.onnx",
+    NNHitPredictor =       "Examples/Scripts/Python/MLHitSearch/Extrap_MLP_ITK_ws3.onnx"
 )
 
 """

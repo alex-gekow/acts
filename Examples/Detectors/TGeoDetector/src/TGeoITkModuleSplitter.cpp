@@ -56,7 +56,7 @@ ActsExamples::TGeoITkModuleSplitter::split(
   for (const std::tuple<std::regex, std::string, bool>& split_category :
        m_splitCategories) {
     if (std::regex_match(sensorName, std::get<0>(split_category))) {
-      ACTS_INFO("Splitting " +
+      ACTS_DEBUG("Splitting " +
                 std::string(category_names[std::get<2>(split_category)]) +
                 " node " + sensorName + " using split ranges of category " +
                 std::get<1>(split_category));
