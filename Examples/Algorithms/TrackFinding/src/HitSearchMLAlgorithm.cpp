@@ -6,6 +6,7 @@
 #include "ActsExamples/Framework/WhiteBoard.hpp"
 
 using SourceLinkPtr = std::shared_ptr<Acts::SourceLink>;
+using SpacePointPtr = std::shared_ptr<ActsExamples::SimSpacePoint>;
 
 ActsExamples::HitSearchMLAlgorithm::HitSearchMLAlgorithm(
     ActsExamples::HitSearchMLAlgorithm::Config cfg,
@@ -117,7 +118,8 @@ ActsExamples::ProcessCode ActsExamples::HitSearchMLAlgorithm::execute(const Algo
   // Possible to use SpacepointSourceLinks instead of Acts::SourceLink?
   // Better to make shared_ptr<Acts::SourceLink> for more efficient storage in multiple containers such as cached hits
 
-  std::map<std::pair<int,int>,std::vector<SourceLinkPtr>> cachedSpacePoints; // cache spacepoints by volume & layer
+  std::map<std::pair<int,int>,std::vector<SpacePointPtr>> cachedSpacePoints; // cache spacepoints by volume & layer
+
   
   // Create map from measurement index to spacepoint
   std::map<Index, std::shared_ptr<ActsExamples::SimSpacePoint>> IndexSpacePointMap;
@@ -127,6 +129,10 @@ ActsExamples::ProcessCode ActsExamples::HitSearchMLAlgorithm::execute(const Algo
     auto sp_ptr = std::make_shared<ActsExamples::SimSpacePoint>(sp);
     IndexSpacePointMap[idx] = sp_ptr;
     auto volumeID = sl.geometryId().volume();
+    auto layerID = sl.geometryId().layer();
+    std::pair<int, int> geo_id = std::make_pair(static_cast<int>(volumeID), static_cast<int>(layerID));
+    cachedSpacePoints[geo_id].push_back(sp_ptr);
+
     if (volumeID == 22 || volumeID == 23 || volumeID == 24){
       idx = sp.sourceLinks()[1].template get<ActsExamples::IndexSourceLink>().index();
       IndexSpacePointMap[idx] = sp_ptr;
@@ -304,9 +310,6 @@ void ActsExamples::HitSearchMLAlgorithm::BatchTracksForGeoPrediction(
     if (traj.activeTips.size() == 0) continue;
 
     int stopTipIdx = traj.activeTips.size();
-    // This makes no sense to me
-    // if (lastTrajIdx == traj_idx) stopTipIdx = lastTipIdx + 1;
-    // lastTrajIdx = traj_idx; already done when counting available tips
 
     // The starting index of the trajectory should be 0, unless you are at the first one. In that case, take the outside one
     int startingIdx = 0;
@@ -415,6 +418,7 @@ void ActsExamples::HitSearchMLAlgorithm::BatchedHitSearch(std::vector<Acts::Comb
         // auto volLayerPair = std::make_pair( static_cast<int>(predVolume), static_cast<int>(predLayer) );
         // auto spacePointsInDetector = cachedSpacePoints.at(volLayerPair);
         // for(auto& sl_ptr:spacePointsInDetector){
+        //   auto sp = *sl_ptr;
 
         for(const auto& sp:spacepoints){
           float distance = std::hypot( row[0] - sp.x(), row[1]-sp.y(), row[2]-sp.z() );
@@ -462,7 +466,7 @@ void ActsExamples::HitSearchMLAlgorithm::BatchedHitSearch(std::vector<Acts::Comb
 }
 
 void ActsExamples::HitSearchMLAlgorithm::BatchedHitSearch(std::vector<Acts::CombinatorialKalmanFilterResult<Acts::VectorMultiTrajectory>>& seedTrajectories,
-  const SimSpacePointContainer& spacepoints, std::map<Index, std::shared_ptr<ActsExamples::SimSpacePoint>>& IndexSpacePointMap, const std::map<std::pair<int,int>,std::vector<SourceLinkPtr>>& cachedSpacePoints, float uncertainty, int batch_size) const{
+  const SimSpacePointContainer& spacepoints, std::map<Index, std::shared_ptr<ActsExamples::SimSpacePoint>>& IndexSpacePointMap, const std::map<std::pair<int,int>,std::vector<SpacePointPtr>>& cachedSpacePoints, float uncertainty, int batch_size) const{
   
   int totalActiveTips = 999;
   while (totalActiveTips > 0){
@@ -527,18 +531,8 @@ void ActsExamples::HitSearchMLAlgorithm::BatchedHitSearch(std::vector<Acts::Comb
 
           auto row = predCoor.row( currentRow );
           currentRow++;
-          // std::cout<<"current spacepoint: "<<sp->x()<<", "<<sp->y()<<", "<<sp->z()<<std::endl;
-          // Get the predicted volume and layer 
-          // auto detectorRow = encDetectorID.row( globalRowIndex + tip_idx);
-          // Eigen::MatrixXf::Index predVolume;
-          // Eigen::MatrixXf::Index predLayer;
-          // detectorRow.head<15>().maxCoeff(&predVolume);
-          // detectorRow.tail<30>().maxCoeff(&predLayer);
-          // auto volLayerPair = std::make_pair( static_cast<int>(predVolume), static_cast<int>(predLayer) );
-          // auto spacePointsInDetector = cachedSpacePoints.at(volLayerPair);
-          // for(auto& sl_ptr:spacePointsInDetector){
 
-          bool matched = ActsExamples::HitSearchMLAlgorithm::FullHitSearch(traj, sp, spacepoints, row, tip_idx, uncertainty);
+          bool matched = ActsExamples::HitSearchMLAlgorithm::FullHitSearch(traj, sp, spacepoints, row, tip_idx, cachedSpacePoints, uncertainty);
           // If there was not found hit we end the track. Alternitvely we can create a spacepoint, add it to the track and continue searching
           if(!matched){
             traj.lastTrackIndices.push_back(traj.activeTips[tip_idx].first);
@@ -706,10 +700,24 @@ void ActsExamples::HitSearchMLAlgorithm::BatchedHitSearch(std::vector<Acts::Comb
 }
 
 bool ActsExamples::HitSearchMLAlgorithm::FullHitSearch(Acts::CombinatorialKalmanFilterResult<Acts::VectorMultiTrajectory>& traj, const std::shared_ptr<SimSpacePoint> spacepoint,
-  const SimSpacePointContainer& spacepoints, Eigen::VectorXf row, Acts::MultiTrajectoryTraits::IndexType tipIndex, float uncertainty) const {
+  const SimSpacePointContainer& spacepoints, Eigen::VectorXf row, Acts::MultiTrajectoryTraits::IndexType tipIndex, const std::map<std::pair<int,int>,std::vector<SpacePointPtr>>& cachedSpacePoints, float uncertainty) const {
   
   bool matched=false;
-  for(const auto& sp:spacepoints){
+
+  Eigen::VectorXf detectorRow = row.tail<45>(); // Get the one hot encoded detector id
+  Eigen::MatrixXf::Index predVolume;
+  Eigen::MatrixXf::Index predLayer;
+  detectorRow.head<15>().maxCoeff(&predVolume);
+  detectorRow.tail<30>().maxCoeff(&predLayer);
+  auto volLayerPair = std::make_pair( static_cast<int>(predVolume), static_cast<int>(predLayer) );
+
+  // If there are no hits in the predicted vol/layer it will not exist in the cache
+  if (cachedSpacePoints.find(volLayerPair) == cachedSpacePoints.end()) return false;
+
+  auto spacePointsInDetector = cachedSpacePoints.at(volLayerPair);
+  for(auto& sp_ptr:spacePointsInDetector){
+    auto sp = *sp_ptr;
+  // for(const auto& sp:spacepoints){
     float distance = std::hypot( row[0] - sp.x(), row[1]-sp.y(), row[2]-sp.z() );
     // std::cout<<row<<std::endl;
     // std::cout<<sp.x()<<" "<< sp.y()<<" "<<sp.z()<<std::endl;

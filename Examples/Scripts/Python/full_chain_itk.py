@@ -25,7 +25,7 @@ from acts.examples.reconstruction import (
     HitSearchMLConfig
 )
 
-ttbar_pu200 = True
+ttbar_pu200 = False
 u = acts.UnitConstants
 geo_dir = pathlib.Path("acts-itk")
 outputDir = pathlib.Path.cwd() / "itk_output"
@@ -104,8 +104,8 @@ addHitSearchML(
     outputTracks="outputTracks",
     inputSourceLinks="sourcelinks",
     inputSpacePoints="spacepoints",
-    NNDetectorClassifier = "Examples/Scripts/Python/MLHitSearch/Classification_MLP_ITK_ws3_v3.onnx",
-    NNHitPredictor =       "Examples/Scripts/Python/MLHitSearch/Extrap_MLP_ITK_ws3.onnx"
+    NNDetectorClassifier = "acts/Examples/Scripts/Python/MLHitSearch/Classification_MLP_ITK_ws3_v3.onnx",
+    NNHitPredictor =       "acts/Examples/Scripts/Python/MLHitSearch/Extrap_MLP_ITK_ws3.onnx"
 )
 
 """
