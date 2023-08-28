@@ -17,7 +17,7 @@ x86_64-slc6-gcc49-opt
 .*
 build*
 .asetup.save
-
+itk_output/
 # do not ignore changes in the requirements file
 # as they are actually important
 !cmt/requirements
@@ -33,6 +33,7 @@ build*
 *.pyc
 /cmake_cmd
 /cleanup.sh
+acts-itk/
 
 # dont ignore hidden configs
 !.clang-format

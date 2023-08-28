@@ -313,19 +313,24 @@ void ActsExamples::HitSearchMLAlgorithm::BatchTracksForGeoPrediction(
     if (traj_idx == startTrajIdx) startingIdx = startTipIdx;
 
 
-    for (int i = startingIdx; i < stopTipIdx; i++) {
+    for (int i = startingIdx; i < stopTipIdx; i++) 
+    {
       // std::cout << "tip index " << i << std::endl;
       auto tip = traj.activeTips.at(i);
       // lastTipIdx = i; already done when counting available tips
       int hitCounter = 2;
       auto tipIdx = tip.first;
       Acts::VectorMultiTrajectory::ConstTrackStateProxy * prev_ts = nullptr;
-      while (hitCounter >= 0) {
+
+      while (hitCounter >= 0) 
+      {
         auto ts = traj.stateBuffer -> getTrackState(tipIdx);
         auto index_sl = ts.getUncalibratedSourceLink().template get < ActsExamples::IndexSourceLink > ();
         auto sp = IndexSpacePointMap[index_sl.index()];
+
         // If the previous spacepoint is the same, get the one before it
-        if (prev_ts) {
+        if (prev_ts)
+        {
           auto prev_index_sl = prev_ts -> getUncalibratedSourceLink().template get < ActsExamples::IndexSourceLink > ();
           auto prev_sp = IndexSpacePointMap[prev_index_sl.index()];
           if (sp == prev_sp) {
@@ -336,7 +341,7 @@ void ActsExamples::HitSearchMLAlgorithm::BatchTracksForGeoPrediction(
         networkInput(nUsedTips, hitCounter * 3) = sp -> x() / m_NNDetectorClassifier.getXScale();
         networkInput(nUsedTips, hitCounter * 3 + 1) = sp -> y() / m_NNDetectorClassifier.getYScale();
         networkInput(nUsedTips, hitCounter * 3 + 2) = sp -> z() / m_NNDetectorClassifier.getZScale();
-        // std::cout<<"trackIndex: "<<traj_idx<<" hitCounter: "<<hitCounter<<" "<<sp->x()<<" "<<sp->y()<<" "<<sp->z()<<std::endl;
+        std::cout<<"trackIndex: "<<traj_idx<<" hitCounter: "<<hitCounter<<" "<<sp->x()<<" "<<sp->y()<<" "<<sp->z()<<std::endl;
         tipIdx = ts.previous();
         hitCounter--;
       }
