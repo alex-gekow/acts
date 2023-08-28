@@ -25,7 +25,7 @@ from acts.examples.reconstruction import (
     HitSearchMLConfig
 )
 
-ttbar_pu200 = True
+ttbar_pu200 = False
 u = acts.UnitConstants
 geo_dir = pathlib.Path("acts-itk")
 outputDir = pathlib.Path.cwd() / "itk_output"

@@ -35,7 +35,10 @@ namespace ActsExamples {
 //    b) the track reaches the end of the detector
 
 class HitSearchMLAlgorithm final: public IAlgorithm {
+
     using SourceLinkPtr = std::shared_ptr<Acts::SourceLink>;
+    using SpacePointPtr = std::shared_ptr<ActsExamples::SimSpacePoint>;
+
     public:
      struct Config  {
         // Input seed collection
@@ -83,11 +86,12 @@ class HitSearchMLAlgorithm final: public IAlgorithm {
     //     const std::vector<std::shared_ptr<Acts::SourceLink>> spacepointSourceLinks, const std::map<std::pair<int,int>, std::vector<std::shared_ptr<Acts::SourceLink>>>& cachedSpacePoints, float uncertainty) const;
 
     void BatchedHitSearch(std::vector<Acts::CombinatorialKalmanFilterResult<Acts::VectorMultiTrajectory>>& seedTrajectories,
-        const SimSpacePointContainer& spacepoints, std::map<Index, std::shared_ptr<ActsExamples::SimSpacePoint>>& IndexSpacePointMap, const std::map<std::pair<int,int>,std::vector<SourceLinkPtr>>& cachedSpacePoints, float uncertainty) const;
+        const SimSpacePointContainer& spacepoints, std::map<Index, std::shared_ptr<ActsExamples::SimSpacePoint>>& IndexSpacePointMap, 
+        const std::map<std::pair<int,int>,std::vector<SourceLinkPtr>>& cachedSpacePoints, float uncertainty) const;
     
     void BatchedHitSearch(std::vector<Acts::CombinatorialKalmanFilterResult<Acts::VectorMultiTrajectory>>& seedTrajectories,
         const SimSpacePointContainer& spacepoints, std::map<Index, std::shared_ptr<ActsExamples::SimSpacePoint>>& IndexSpacePointMap, 
-        const std::map<std::pair<int,int>,std::vector<SourceLinkPtr>>& cachedSpacePoints, float uncertainty, int batch_size) const;
+        const std::map<std::pair<int,int>,std::vector<SpacePointPtr>>& cachedSpacePoints, float uncertainty, int batch_size) const;
     
     void MultiTrajectorySpacepointToIndex(std::vector<Acts::CombinatorialKalmanFilterResult<Acts::VectorMultiTrajectory>>& Trajectories) const;
 
@@ -95,7 +99,8 @@ class HitSearchMLAlgorithm final: public IAlgorithm {
         unsigned int &startTipIdx, unsigned int &lastTipIdx, unsigned int &startTrajIdx, unsigned int &lastTrajIdx, int batch_size) const;
 
     bool FullHitSearch(Acts::CombinatorialKalmanFilterResult<Acts::VectorMultiTrajectory>& traj, const std::shared_ptr<SimSpacePoint> spacepoint,
-  const SimSpacePointContainer& spacepoints, Eigen::VectorXf row, Acts::MultiTrajectoryTraits::IndexType tipIndex, float uncertainty=10) const;
+  const SimSpacePointContainer& spacepoints, Eigen::VectorXf row, Acts::MultiTrajectoryTraits::IndexType tipIndex, const std::map<std::pair<int,int>,std::vector<SpacePointPtr>>& cachedSpacePoints, 
+  float uncertainty=10) const;
 
 
 
