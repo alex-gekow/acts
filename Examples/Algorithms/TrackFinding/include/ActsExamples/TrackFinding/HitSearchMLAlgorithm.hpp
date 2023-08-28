@@ -72,31 +72,12 @@ class HitSearchMLAlgorithm final: public IAlgorithm {
     const Config& config() const { return m_cfg; }
 
     Acts::NetworkBatchInput BatchTracksForGeoPrediction(std::vector<SimSpacePointContainer> hitTracks);
-    Acts::NetworkBatchInput BatchTracksForGeoPrediction(Acts::CombinatorialKalmanFilterResult<Acts::VectorMultiTrajectory> &tracks, std::map<Index, std::shared_ptr<ActsExamples::SimSpacePoint>>& IndexSpacePointMap) const; 
 
     void BatchTracksForGeoPrediction_recommendedBatchSize( 
         std::vector<Acts::CombinatorialKalmanFilterResult<Acts::VectorMultiTrajectory>> &tracks, 
         std::vector<int> indexToProcess,
         Acts::NetworkBatchInput& networkInput,
         std::map<Index, std::shared_ptr<ActsExamples::SimSpacePoint>>& IndexSpacePointMap) const;
-
-    void BatchTracksForGeoPrediction( std::vector<Acts::CombinatorialKalmanFilterResult<Acts::VectorMultiTrajectory>> &tracks, 
-        Acts::NetworkBatchInput& networkInput, std::map<Index, std::shared_ptr<ActsExamples::SimSpacePoint>>& IndexSpacePointMap,
-        unsigned int &startTipIdx, unsigned int &lastTipIdx, unsigned int &startTrajIdx, unsigned int &lastTrajIdx, unsigned int batch_size) const;
-    
-    // void BatchedHitSearch(std::vector<Acts::CombinatorialKalmanFilterResult<Acts::VectorMultiTrajectory>>& seedTrajectories,
-    //     const std::vector<std::shared_ptr<Acts::SourceLink>> spacepointSourceLinks, const std::map<std::pair<int,int>,std::vector<std::shared_ptr<Acts::SourceLink>>>& cachedSpacePoints, float uncertainty=10) const;
-   
-    // void BatchedHitSearch(std::vector<Acts::CombinatorialKalmanFilterResult<Acts::VectorMultiTrajectory>>& seedTrajectories, std::vector<Acts::CombinatorialKalmanFilterResult<Acts::VectorMultiTrajectory>>& indexTrajectories,
-    //     const std::vector<std::shared_ptr<Acts::SourceLink>> spacepointSourceLinks, const std::map<std::pair<int,int>, std::vector<std::shared_ptr<Acts::SourceLink>>>& cachedSpacePoints, float uncertainty) const;
-
-    void BatchedHitSearch(std::vector<Acts::CombinatorialKalmanFilterResult<Acts::VectorMultiTrajectory>>& seedTrajectories,
-        const SimSpacePointContainer& spacepoints, std::map<Index, std::shared_ptr<ActsExamples::SimSpacePoint>>& IndexSpacePointMap, 
-        const std::map<std::pair<int,int>,std::vector<SourceLinkPtr>>& cachedSpacePoints, float uncertainty) const;
-    
-    void BatchedHitSearch(std::vector<Acts::CombinatorialKalmanFilterResult<Acts::VectorMultiTrajectory>>& seedTrajectories,
-        const SimSpacePointContainer& spacepoints, std::map<Index, std::shared_ptr<ActsExamples::SimSpacePoint>>& IndexSpacePointMap, 
-        const std::map<std::pair<int,int>,std::vector<SpacePointPtr>>& cachedSpacePoints, float uncertainty, int batch_size) const;
     
     void BatchedHitSearch_recommendedBatchSize(
     std::vector<Acts::CombinatorialKalmanFilterResult<Acts::VectorMultiTrajectory>>& seedTrajectories,
@@ -106,10 +87,6 @@ class HitSearchMLAlgorithm final: public IAlgorithm {
     float uncertainty, 
     int batch_size) const;
 
-    void MultiTrajectorySpacepointToIndex(std::vector<Acts::CombinatorialKalmanFilterResult<Acts::VectorMultiTrajectory>>& Trajectories) const;
-
-    int CountAvailableTips(std::vector<Acts::CombinatorialKalmanFilterResult<Acts::VectorMultiTrajectory>>& seedTrajectories,
-        unsigned int &startTipIdx, unsigned int &lastTipIdx, unsigned int &startTrajIdx, unsigned int &lastTrajIdx, int batch_size) const;
 
     bool FullHitSearch(Acts::CombinatorialKalmanFilterResult<Acts::VectorMultiTrajectory>& traj, const std::shared_ptr<SimSpacePoint> spacepoint,
   const SimSpacePointContainer& spacepoints, Eigen::VectorXf row, Acts::MultiTrajectoryTraits::IndexType tipIndex, const std::map<std::pair<int,int>,std::vector<SpacePointPtr>>& cachedSpacePoints, 
