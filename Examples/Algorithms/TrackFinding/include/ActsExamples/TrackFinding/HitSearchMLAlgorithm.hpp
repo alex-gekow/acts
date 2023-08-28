@@ -74,6 +74,11 @@ class HitSearchMLAlgorithm final: public IAlgorithm {
     Acts::NetworkBatchInput BatchTracksForGeoPrediction(std::vector<SimSpacePointContainer> hitTracks);
     Acts::NetworkBatchInput BatchTracksForGeoPrediction(Acts::CombinatorialKalmanFilterResult<Acts::VectorMultiTrajectory> &tracks, std::map<Index, std::shared_ptr<ActsExamples::SimSpacePoint>>& IndexSpacePointMap) const; 
 
+    void BatchTracksForGeoPrediction_recommendedBatchSize( 
+        std::vector<Acts::CombinatorialKalmanFilterResult<Acts::VectorMultiTrajectory>> &tracks, 
+        std::vector<int> indexToProcess,
+        Acts::NetworkBatchInput& networkInput,
+        std::map<Index, std::shared_ptr<ActsExamples::SimSpacePoint>>& IndexSpacePointMap) const;
 
     void BatchTracksForGeoPrediction( std::vector<Acts::CombinatorialKalmanFilterResult<Acts::VectorMultiTrajectory>> &tracks, 
         Acts::NetworkBatchInput& networkInput, std::map<Index, std::shared_ptr<ActsExamples::SimSpacePoint>>& IndexSpacePointMap,
@@ -93,6 +98,14 @@ class HitSearchMLAlgorithm final: public IAlgorithm {
         const SimSpacePointContainer& spacepoints, std::map<Index, std::shared_ptr<ActsExamples::SimSpacePoint>>& IndexSpacePointMap, 
         const std::map<std::pair<int,int>,std::vector<SpacePointPtr>>& cachedSpacePoints, float uncertainty, int batch_size) const;
     
+    void BatchedHitSearch_recommendedBatchSize(
+    std::vector<Acts::CombinatorialKalmanFilterResult<Acts::VectorMultiTrajectory>>& seedTrajectories,
+    const SimSpacePointContainer& spacepoints, 
+    std::map<Index, std::shared_ptr<ActsExamples::SimSpacePoint>>& IndexSpacePointMap, 
+    const std::map<std::pair<int,int>,std::vector<SpacePointPtr>>& cachedSpacePoints, 
+    float uncertainty, 
+    int batch_size) const;
+
     void MultiTrajectorySpacepointToIndex(std::vector<Acts::CombinatorialKalmanFilterResult<Acts::VectorMultiTrajectory>>& Trajectories) const;
 
     int CountAvailableTips(std::vector<Acts::CombinatorialKalmanFilterResult<Acts::VectorMultiTrajectory>>& seedTrajectories,
@@ -102,6 +115,11 @@ class HitSearchMLAlgorithm final: public IAlgorithm {
   const SimSpacePointContainer& spacepoints, Eigen::VectorXf row, Acts::MultiTrajectoryTraits::IndexType tipIndex, const std::map<std::pair<int,int>,std::vector<SpacePointPtr>>& cachedSpacePoints, 
   float uncertainty=10) const;
 
+
+    bool inStripLayer(int volumeID) const
+    {
+        return (volumeID == 22 || volumeID == 23 || volumeID == 24);
+    };
 
 
     private:
