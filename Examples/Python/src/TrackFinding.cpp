@@ -330,7 +330,7 @@ void addTrackFinding(Context& ctx) {
                                 mex, "HitSearchMLAlgorithm",
                                 inputSeeds, NNDetectorClassifier,
                                 NNHitPredictor, outputTracks, inputSourceLinks, inputSpacePoints,
-                                nHitsMin, uncertainty);
+                                nHitsMin, searchWindowSize, batchSize, maxBranch);
 
 #endif
 }

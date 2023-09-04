@@ -17,6 +17,7 @@
 #include "Acts/Plugins/Identification/IdentifiedDetectorElement.hpp"
 #include "Acts/Surfaces/Surface.hpp"
 #include "ActsExamples/Utilities/Paths.hpp"
+#include "Acts/Surfaces/AnnulusBounds.hpp"
 
 #include <iostream>
 #include <sstream>
@@ -96,6 +97,34 @@ void fillSurfaceData(SurfaceData& data, const Acts::Surface& surface,
 
   for (size_t ipar = 0; ipar < boundValues.size(); ++ipar) {
     (*dataBoundParameters[ipar]) = boundValues[ipar];
+  }
+
+  if(data.bounds_type == 11)
+  {
+    auto annulus = dynamic_cast<const Acts::AnnulusBounds*>(&bounds);
+    auto corner = annulus->corners();
+    auto verts = annulus->vertices(0);
+
+    // double centerX = 0;
+    // double centerY = 0;
+
+    // for(const auto& v: verts)
+    // {
+    //   centerX+= v[0];
+    //   centerY+= v[1];
+    // }
+    // centerX /= verts.size();
+    // centerY /= verts.size();
+
+    // data.cx = annulus->moduleOrigin()[0];
+    // data.cy = annulus->moduleOrigin()[1];
+
+    data.cx = annulus->binningValueR() * std::cos(annulus->binningValuePhi());
+    data.cy = annulus->binningValueR() * std::sin(annulus->binningValuePhi());
+
+    data.bound_param0 = std::sqrt(std::pow(verts[0][0]-verts[1][0],2) + std::pow(verts[0][1]-verts[1][1],2));
+    data.bound_param1 = std::sqrt(std::pow(verts[2][0]-verts[3][0],2) + std::pow(verts[2][1]-verts[3][1],2));
+    data.bound_param2 = annulus->rMax() - annulus->rMin();
   }
 
   if (surface.associatedDetectorElement() != nullptr) {

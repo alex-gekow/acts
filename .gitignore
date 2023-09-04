@@ -16,6 +16,7 @@ x86_64-slc6-gcc48-opt
 x86_64-slc6-gcc49-opt
 .*
 build*
+csv*
 .asetup.save
 itk_output/
 # do not ignore changes in the requirements file

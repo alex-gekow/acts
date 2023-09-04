@@ -52,10 +52,19 @@ class HitSearchMLAlgorithm final: public IAlgorithm {
         // Input spacepoints
         std::string inputSpacePoints;
         // Minimum number of hits needed to consider a track
-        int nHitsMin=6;
+        int nHitsMin = 6;
         // Uncertainty window to search for hits (in mm)
-        float uncertainty = 10;
+        // It will search for hits in the first limit and then got to the next
+        std::vector<float> searchWindowSize = {2, 5, 10, 15, 20};
+        // batch size for prediction
+        int batchSize = 128;
+        // Maximum Branching
+        int maxBranch = 3;
      };
+
+    //  To move into config
+    //  std::vector<float> m_searchWindowSize = {2, 5, 10, 15, 20};
+    //  int m_batchSize = 128;
 
     /// Construct the ambiguity resolution algorithm.
     ///
@@ -84,17 +93,16 @@ class HitSearchMLAlgorithm final: public IAlgorithm {
     const SimSpacePointContainer& spacepoints, 
     std::map<Index, std::shared_ptr<ActsExamples::SimSpacePoint>>& IndexSpacePointMap, 
     const std::map<std::pair<int,int>,std::vector<SpacePointPtr>>& cachedSpacePoints, 
-    float uncertainty, 
-    int batch_size) const;
+    std::map<int, int>& seedDepth) const;
 
 
     bool FullHitSearch(Acts::CombinatorialKalmanFilterResult<Acts::VectorMultiTrajectory>& traj, const std::shared_ptr<SimSpacePoint> spacepoint,
-  const SimSpacePointContainer& spacepoints, Eigen::VectorXf row, Acts::MultiTrajectoryTraits::IndexType tipIndex, const std::map<std::pair<int,int>,std::vector<SpacePointPtr>>& cachedSpacePoints, 
-  float uncertainty=10) const;
+  const SimSpacePointContainer& spacepoints, Eigen::VectorXf row, Acts::MultiTrajectoryTraits::IndexType tipIndex, const std::map<std::pair<int,int>,std::vector<SpacePointPtr>>& cachedSpacePoints) const;
 
 
     bool inStripLayer(int volumeID) const
     {
+        return false;
         return (volumeID == 22 || volumeID == 23 || volumeID == 24);
     };
 

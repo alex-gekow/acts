@@ -41,9 +41,9 @@ s = acts.examples.Sequencer(events=1, numThreads=1, outputDir=str(outputDir))
 if not ttbar_pu200:
     addParticleGun(
         s,
-        MomentumConfig(1.0 * u.GeV, 10.0 * u.GeV, transverse=True),
+        MomentumConfig(10.0 * u.GeV, 100.0 * u.GeV, transverse=True),
         EtaConfig(-4.0, 4.0, uniform=True),
-        ParticleConfig(10, acts.PdgParticle.eMuon, randomizeCharge=True),
+        ParticleConfig(2, acts.PdgParticle.eMuon, randomizeCharge=True),
         rnd=rnd
     )
 else:
@@ -99,7 +99,7 @@ addSeeding(
 
 addHitSearchML(
     s,
-    config = HitSearchMLConfig(uncertainty=10, nHitsMin=6),
+    config = HitSearchMLConfig(searchWindowSize=[2, 5, 10, 15, 20, 25, 30], nHitsMin=6, batchSize=128, maxBranch = 3),
     inputSeeds = "seeds",
     outputTracks="outputTracks",
     inputSourceLinks="sourcelinks",

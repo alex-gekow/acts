@@ -14,8 +14,8 @@ from acts.examples import (
     JsonMaterialWriter,
     JsonFormat,
 )
+import pathlib, acts, acts.examples, acts.examples.itk
 
-import acts
 
 from acts import MaterialMapJsonConverter
 
@@ -25,10 +25,10 @@ def runGeometry(
     decorators,
     outputDir,
     events=1,
-    outputObj=True,
+    outputObj=False,
     outputCsv=True,
-    outputJson=True,
-    outputRoot=True,
+    outputJson=False,
+    outputRoot=False,
 ):
 
     for ievt in range(events):
@@ -88,8 +88,14 @@ def runGeometry(
 
 
 if "__main__" == __name__:
-    detector, trackingGeometry, decorators = AlignedDetector.create()
+    # detector, trackingGeometry, decorators = AlignedDetector.create()
     # detector, trackingGeometry, decorators = GenericDetector.create()
     # detector, trackingGeometry, decorators = getOpenDataDetector(getOpenDataDetectorDirectory())
+
+    geo_dir = pathlib.Path("acts-itk")
+    outputDir = pathlib.Path.cwd() / "itk_output"
+    # acts.examples.dump_args_calls(locals())  # show acts.examples python binding calls
+
+    detector, trackingGeometry, decorators = acts.examples.itk.buildITkGeometry(geo_dir)
 
     runGeometry(trackingGeometry, decorators, outputDir=os.getcwd())

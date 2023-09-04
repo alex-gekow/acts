@@ -146,8 +146,8 @@ AmbiguityResolutionMLConfig = namedtuple(
 
 HitSearchMLConfig = namedtuple(
     "HitSearchMLConfig",
-    ["nHitsMin","uncertainty"],
-    defaults=[None] * 2
+    ["nHitsMin","searchWindowSize", "batchSize", "maxBranch"],
+    defaults=[None] * 4
 )
 
 
@@ -1294,7 +1294,9 @@ def addHitSearchML(
         NNHitPredictor = NNHitPredictor,
         **acts.examples.defaultKWArgs(
             nHitsMin=config.nHitsMin,
-            uncertainty=config.uncertainty
+            searchWindowSize=config.searchWindowSize,
+            batchSize=config.batchSize,
+            maxBranch=config.maxBranch
         )
     )
 
